@@ -491,8 +491,7 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
         )}
 
         <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
-          <button onClick={() => goTo("back")} disabled={activeTab === "about"} style={{ background: "none", border: "2px solid #1a1a2e", borderRadius: "3px", color: "#1a1a2e", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: activeTab === "about" ? "not-allowed" : "pointer", opacity: activeTab === "about" ? 0.3 : 1 }}>← Back</button>
-{activeTab !== "submit" && <button onClick={() => goTo("next")} style={{ background: "#1a1a2e", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>Next →</button>}        </div>
+{activeTab !== "about" && <button onClick={() => goTo("back")} style={{ background: "none", border: "2px solid #1a1a2e", borderRadius: "3px", color: "#1a1a2e", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>← Back</button>}{activeTab !== "submit" && <button onClick={() => goTo("next")} style={{ background: "#1a1a2e", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>Next →</button>}        </div>
 
       </div>
     </div>
