@@ -323,7 +323,6 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
 
       <div className="no-print" style={{ background: "#fff", borderBottom: "1px solid #ddd", padding: "10px 32px" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto", display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", color: "#666", whiteSpace: "nowrap", minWidth: "120px", overflow: "hidden", textOverflow: "ellipsis" }}>{name.trim() ? name : "No name yet"}</div>
           <div style={{ flex: 1, height: "8px", background: "#eee", borderRadius: "4px", overflow: "hidden" }}>
             <div style={{ height: "100%", width: `${pct}%`, background: pct === 100 ? "#2d7a2d" : "#e8c547", borderRadius: "4px", transition: "width 0.4s ease" }} />
           </div>
@@ -349,7 +348,7 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
         </div>
       </div>
 
-      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "32px 24px" }}>
+      <div style={{ maxWidth: "860px", margin: "0 auto", padding: "32px 32px" }}>
 
         {activeTab === "about" && (
           <div>
