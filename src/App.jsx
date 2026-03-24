@@ -262,7 +262,7 @@ export default function FreelanceReflection() {
     reflection: challenge.trim() && proudOf.trim() && nextStep.trim(),
     submit: declared,
   };
-
+const allSectionsComplete = tabComplete.about && tabComplete.testing && tabComplete.freelancing && tabComplete.tax && tabComplete.knowledge && tabComplete.reflection;
   const handleSubmit = async () => {
     setSubmitting(true);
     setSubmitError(null);
@@ -280,7 +280,6 @@ export default function FreelanceReflection() {
         }),
       });
       setFormSubmitted(true);
-      setTimeout(() => window.print(), 400);
     } catch {
       setSubmitError("Submission failed — please try again or let your facilitator know.");
     } finally {
@@ -476,8 +475,12 @@ export default function FreelanceReflection() {
             </div>
             <div style={{ background: "#fff", border: "2px solid #1a1a2e", borderRadius: "4px", padding: "20px", marginBottom: "24px" }}>
               <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", fontWeight: "700", color: "#1a1a2e", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "12px" }}>Declaration</div>
-              <CheckItem label="I confirm that this is my own work, completed to the best of my ability. I understand this is my final submission for the Freelance Game Tester course and I will not have another opportunity to complete or revise it." checked={declared} onChange={setDeclared} />
-            </div>
+{!allSectionsComplete && (
+  <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", color: "#b42828", marginBottom: "12px" }}>
+    ⚠ Complete all sections before declaring.
+  </div>
+)}
+<CheckItem label="I confirm that this is my own work, completed to the best of my ability. I understand this is my final submission for the Freelance Game Tester course and I will not have another opportunity to complete or revise it." checked={declared} onChange={v => allSectionsComplete && setDeclared(v)} />            </div>
             {submitError && (
               <div style={{ background: "rgba(180,40,40,0.08)", border: "1.5px solid #b42828", borderRadius: "4px", padding: "12px 16px", marginBottom: "16px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", color: "#b42828" }}>{submitError}</div>
             )}
@@ -489,8 +492,7 @@ export default function FreelanceReflection() {
 
         <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
           <button onClick={() => goTo("back")} disabled={activeTab === "about"} style={{ background: "none", border: "2px solid #1a1a2e", borderRadius: "3px", color: "#1a1a2e", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: activeTab === "about" ? "not-allowed" : "pointer", opacity: activeTab === "about" ? 0.3 : 1 }}>← Back</button>
-          <button onClick={() => goTo("next")} disabled={activeTab === "submit"} style={{ background: "#1a1a2e", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: activeTab === "submit" ? "not-allowed" : "pointer", opacity: activeTab === "submit" ? 0.3 : 1 }}>Next →</button>
-        </div>
+{activeTab !== "submit" && <button onClick={() => goTo("next")} style={{ background: "#1a1a2e", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>Next →</button>}        </div>
 
       </div>
     </div>
