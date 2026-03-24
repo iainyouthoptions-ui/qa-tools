@@ -313,7 +313,7 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
         @media print { .no-print { display: none !important; } }
       `}</style>
 
-      <div style={{ background: "#1a1a2e", padding: "24px 32px", borderBottom: "5px solid #e8c547" }}>
+      <div style={{ background: "#1a1a2e", padding: "24px 24px", borderBottom: "5px solid #e8c547" }}>
         <div style={{ maxWidth: "860px", margin: "0 auto" }}>
           <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "11px", color: "#e8c547", letterSpacing: "0.2em", textTransform: "uppercase", marginBottom: "6px" }}>QA for Gaming · Freelance Game Tester · Final Session</div>
           <h1 style={{ margin: "0 0 6px", color: "#fff", fontFamily: "'Courier Prime', monospace", fontSize: "22px", fontWeight: "700" }}>Course Reflection & Evidence Document</h1>
