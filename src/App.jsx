@@ -476,7 +476,7 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
             <div style={{ background: "#fff", border: "2px solid #1a1a2e", borderRadius: "4px", padding: "20px", marginBottom: "24px" }}>
               <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", fontWeight: "700", color: "#1a1a2e", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "12px" }}>Declaration</div>
 {!allSectionsComplete && (
-  <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", color: "#b42828", marginBottom: "12px" }}>
+  <div style={{ fontFamily: "'Courier Prime', monospace", fontSize: "12px", color: "#b42828", marginBottom: "12px", fontWeight: "700" }}>
     ⚠ Complete all sections before declaring.
   </div>
 )}
