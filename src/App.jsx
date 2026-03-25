@@ -484,14 +484,13 @@ const allSectionsComplete = tabComplete.about && tabComplete.testing && tabCompl
               <div style={{ background: "rgba(180,40,40,0.08)", border: "1.5px solid #b42828", borderRadius: "4px", padding: "12px 16px", marginBottom: "16px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", color: "#b42828" }}>{submitError}</div>
             )}
             <button onClick={handleSubmit} disabled={!declared || submitting} style={{ background: declared && !submitting ? "#e8c547" : "#ccc", border: "none", borderRadius: "3px", color: declared && !submitting ? "#1a1a2e" : "#999", padding: "14px 32px", fontFamily: "'Courier Prime', monospace", fontSize: "14px", fontWeight: "700", cursor: declared && !submitting ? "pointer" : "not-allowed", letterSpacing: "0.05em" }}>
-              {submitting ? "Submitting..." : declared ? "Submit & Generate PDF" : "Complete declaration to submit"}
+              {submitting ? "Submitting..." : declared ? "Submit" : "Complete declaration to submit"}
             </button>
           </div>
         )}
 
         <div className="no-print" style={{ display: "flex", justifyContent: "space-between", marginTop: "32px", paddingTop: "20px", borderTop: "1px solid #ddd" }}>
-{activeTab !== "about" && <button onClick={() => goTo("back")} style={{ background: "none", border: "2px solid #1a1a2e", borderRadius: "3px", color: "#1a1a2e", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>← Back</button>}{activeTab !== "submit" && <button onClick={() => goTo("next")} style={{ background: "#1a1a2e", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>Next →</button>}        </div>
-
+{activeTab !== "submit" && <button onClick={() => goTo("next")} disabled={!tabComplete[activeTab]} style={{ background: tabComplete[activeTab] ? "#1a1a2e" : "#ccc", border: "none", borderRadius: "3px", color: "#fff", padding: "10px 24px", fontFamily: "'Courier Prime', monospace", fontSize: "13px", fontWeight: "700", cursor: tabComplete[activeTab] ? "pointer" : "not-allowed" }}>Next →</button>}
       </div>
     </div>
   );
