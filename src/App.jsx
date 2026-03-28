@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const TODAY = new Date().toISOString().split("T")[0];
 
@@ -241,30 +241,53 @@ const PrintDoc = ({ name, date, gameTypes, whyTesting, bugProcess, tools, findWo
   );
 };
 
+const STORAGE_KEY = "qa-reflection-draft";
+
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 export default function FreelanceReflection() {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => loadDraft()?.darkMode ?? false);
   const t = darkMode ? dark : light;
 
-  const [activeTab, setActiveTab] = useState("about");
-  const [name, setName] = useState("");
-  const [date, setDate] = useState(TODAY);
-  const [gameTypes, setGameTypes] = useState("");
-  const [whyTesting, setWhyTesting] = useState("");
-  const [bugProcess, setBugProcess] = useState("");
-  const [tools, setTools] = useState({ jira: false, trello: false, gdocs: false, sheets: false, obs: false, word: false, excel: false, powerpoint: false, other: false });
-  const [otherTool, setOtherTool] = useState("");
-  const [findWork, setFindWork] = useState("");
-  const [pitch, setPitch] = useState("");
-  const [invoice, setInvoice] = useState("");
-  const [abn, setAbn] = useState("");
-  const [taxApproach, setTaxApproach] = useState("");
-  const [challenge, setChallenge] = useState("");
-  const [proudOf, setProudOf] = useState("");
-  const [nextStep, setNextStep] = useState("");
-  const [declared, setDeclared] = useState(false);
-  const [mcAnswers, setMcAnswers] = useState({});
-  const [mcSubmitted, setMcSubmitted] = useState(false);
-  const [openGroup, setOpenGroup] = useState("bug");
+  const [activeTab, setActiveTab] = useState(() => loadDraft()?.activeTab ?? "about");
+  const [name, setName] = useState(() => loadDraft()?.name ?? "");
+  const [date, setDate] = useState(() => loadDraft()?.date ?? TODAY);
+  const [gameTypes, setGameTypes] = useState(() => loadDraft()?.gameTypes ?? "");
+  const [whyTesting, setWhyTesting] = useState(() => loadDraft()?.whyTesting ?? "");
+  const [bugProcess, setBugProcess] = useState(() => loadDraft()?.bugProcess ?? "");
+  const [tools, setTools] = useState(() => loadDraft()?.tools ?? { jira: false, trello: false, gdocs: false, sheets: false, obs: false, word: false, excel: false, powerpoint: false, other: false });
+  const [otherTool, setOtherTool] = useState(() => loadDraft()?.otherTool ?? "");
+  const [findWork, setFindWork] = useState(() => loadDraft()?.findWork ?? "");
+  const [pitch, setPitch] = useState(() => loadDraft()?.pitch ?? "");
+  const [invoice, setInvoice] = useState(() => loadDraft()?.invoice ?? "");
+  const [abn, setAbn] = useState(() => loadDraft()?.abn ?? "");
+  const [taxApproach, setTaxApproach] = useState(() => loadDraft()?.taxApproach ?? "");
+  const [challenge, setChallenge] = useState(() => loadDraft()?.challenge ?? "");
+  const [proudOf, setProudOf] = useState(() => loadDraft()?.proudOf ?? "");
+  const [nextStep, setNextStep] = useState(() => loadDraft()?.nextStep ?? "");
+  const [declared, setDeclared] = useState(() => loadDraft()?.declared ?? false);
+  const [mcAnswers, setMcAnswers] = useState(() => loadDraft()?.mcAnswers ?? {});
+  const [mcSubmitted, setMcSubmitted] = useState(() => loadDraft()?.mcSubmitted ?? false);
+  const [openGroup, setOpenGroup] = useState(() => loadDraft()?.openGroup ?? "bug");
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        darkMode, activeTab, name, date, gameTypes, whyTesting, bugProcess,
+        tools, otherTool, findWork, pitch, invoice, abn, taxApproach,
+        challenge, proudOf, nextStep, declared, mcAnswers, mcSubmitted, openGroup,
+      }));
+    } catch {}
+  }, [darkMode, activeTab, name, date, gameTypes, whyTesting, bugProcess,
+      tools, otherTool, findWork, pitch, invoice, abn, taxApproach,
+      challenge, proudOf, nextStep, declared, mcAnswers, mcSubmitted, openGroup]);
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
@@ -312,6 +335,7 @@ export default function FreelanceReflection() {
           challenge, proudOf, nextStep,
         }),
       });
+      localStorage.removeItem(STORAGE_KEY);
       setFormSubmitted(true);
     } catch {
       setSubmitError("Submission failed — please try again or let your facilitator know.");
