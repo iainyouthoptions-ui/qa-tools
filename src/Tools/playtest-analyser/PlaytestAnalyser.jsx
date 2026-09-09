@@ -52,9 +52,9 @@ function makeParticipant(n) {
 
 function initState() {
   return {
-    game: "", date: "", participantCount: null,
+    name: "", game: "", date: "", participantCount: null,
     participants: [],
-    problemArea: [], severity: null, surprises: null, surprisesDetail: "",
+    problemArea: [], problemAreaOther: "", severity: null, surprises: null, surprisesDetail: "",
     mostEnjoyed: "",
     keyFindings: "",
     recommendations: [{ id: 1, text: "", priority: "Medium" }],
@@ -91,10 +91,10 @@ function buildSteps(state) {
 
 function isStepComplete(step, state) {
   switch (step.type) {
-    case "setup": return state.game.trim() !== "" && state.date.trim() !== "";
+    case "setup": return state.name.trim() !== "" && state.game.trim() !== "" && state.date.trim() !== "";
     case "count": return state.participantCount !== null;
     case "participants": return state.participants.length > 0 && state.participants.every(p => p.enjoyed.trim() !== "" && p.confused.trim() !== "" && p.improve.trim() !== "");
-    case "area": return state.problemArea.length > 0;
+    case "area": return state.problemArea.length > 0 && (!state.problemArea.includes("Other") || state.problemAreaOther.trim() !== "");
     case "enjoyed": return state.mostEnjoyed.trim() !== "";
     case "severity": return state.severity !== null;
     case "surprises": return state.surprises !== null && (state.surprises === "No" || state.surprisesDetail.trim() !== "");
@@ -208,6 +208,10 @@ export default function PlaytestAnalyser() {
       <div style={sx.question}>Let's set up your session</div>
       <div style={sx.prompt}>Enter the basics so your report is labelled correctly.</div>
       <div style={{ marginBottom: 20 }}>
+        <label style={sx.label}>Your name</label>
+        <input style={sx.smallInput} value={state.name} onChange={e => setField("name", e.target.value)} placeholder="e.g. Alex Smith" />
+      </div>
+      <div style={{ marginBottom: 20 }}>
         <label style={sx.label}>Game being tested</label>
         <input style={sx.smallInput} value={state.game} onChange={e => setField("game", e.target.value)} placeholder="e.g. Blood Reaver" />
       </div>
@@ -278,6 +282,12 @@ export default function PlaytestAnalyser() {
           );
         })}
       </div>
+      {state.problemArea.includes("Other") && (
+        <div style={{ marginTop: 16 }}>
+          <label style={sx.label}>Describe the other area</label>
+          <textarea rows={2} style={sx.smallInput} value={state.problemAreaOther} onChange={e => setField("problemAreaOther", e.target.value)} placeholder="Briefly describe the area in 1–2 sentences." />
+        </div>
+      )}
     </div>
   );
 
@@ -448,7 +458,7 @@ export default function PlaytestAnalyser() {
       pcBox: { background: "#f0faf9", border: "1px solid #b2e8e4", borderRadius: 6, padding: "10px 14px", fontSize: 12, color: "#2a7a8c", lineHeight: 1.7, marginTop: 28 },
     };
     return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, overflowY: "auto", padding: "32px 20px" }}>
+      <div id="report-overlay" style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 200, overflowY: "auto", padding: "32px 20px" }}>
         <div style={{ maxWidth: 760, margin: "0 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ color: "#fff", fontWeight: 700, fontSize: 14 }}>Evidence Report</div>
@@ -460,7 +470,7 @@ export default function PlaytestAnalyser() {
           <div id="print-zone" style={ps.page}>
             <div style={ps.kicker}>Youth Options · Lead Gameplay Tester</div>
             <div style={ps.h1}>Playtest Analysis Report</div>
-            <div style={ps.meta}>{state.game}{dateStr && ` · ${dateStr}`}{state.participantCount && ` · ${state.participantCount} participant${state.participantCount !== 1 ? "s" : ""}`}</div>
+            <div style={ps.meta}>{state.name && `${state.name} · `}{state.game}{dateStr && ` · ${dateStr}`}{state.participantCount && ` · ${state.participantCount} participant${state.participantCount !== 1 ? "s" : ""}`}</div>
 
             <div style={ps.h2}>Participant Feedback</div>
             {state.participants.map((p, i) => (
@@ -474,7 +484,8 @@ export default function PlaytestAnalyser() {
 
             <div style={ps.h2}>Pattern Analysis</div>
             <div style={ps.fieldLbl}>Problem areas identified</div>
-            <div style={{ marginBottom: 12 }}>{state.problemArea.map(a => <span key={a} style={ps.areaBadge}>{a}</span>)}</div>
+            <div style={{ marginBottom: state.problemAreaOther ? 8 : 12 }}>{state.problemArea.map(a => <span key={a} style={ps.areaBadge}>{a}</span>)}</div>
+            {state.problemAreaOther && <div style={{ ...ps.fieldVal, marginBottom: 12 }}>{state.problemAreaOther}</div>}
             <div style={ps.fieldLbl}>Peak engagement moment</div>
             <div style={ps.fieldVal}>{state.mostEnjoyed}</div>
             <div style={ps.fieldLbl}>Player friction level</div>
@@ -514,7 +525,7 @@ export default function PlaytestAnalyser() {
 
   return (
     <div style={sx.root}>
-      <style>{`@media print { body * { visibility: hidden !important; } #print-zone, #print-zone * { visibility: visible !important; } #print-zone { position: absolute; left: 0; top: 0; width: 100%; padding: 32px; box-shadow: none !important; border-radius: 0 !important; } }`}</style>
+      <style>{`@media print { body * { visibility: hidden !important; } #report-overlay { position: static !important; overflow: visible !important; background: none !important; padding: 0 !important; } #print-zone, #print-zone * { visibility: visible !important; } #print-zone { position: static !important; max-width: 100% !important; padding: 32px !important; box-shadow: none !important; border-radius: 0 !important; overflow-wrap: break-word; word-break: break-word; } }`}</style>
       {showReport && <Report />}
 
       {/* Header */}
@@ -527,7 +538,7 @@ export default function PlaytestAnalyser() {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <button style={{ ...sx.btnDanger, fontSize: 11, padding: "5px 10px" }} onClick={reset}>Reset</button>
+          <button style={{ ...sx.btnDanger, fontSize: 11, padding: "5px 10px" }} onClick={reset}>Clear Form</button>
           <button style={sx.themeBtn} onClick={() => setTheme(t => t === "dark" ? "light" : "dark")}>{theme === "dark" ? "☀ Light" : "☾ Dark"}</button>
         </div>
       </div>
