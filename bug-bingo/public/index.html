@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Bug Bingo · End of Ember</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@400;600;700&display=swap">
+<style>
+:root{
+  --ground:#DCE2E9; --panel:#F3F5F8; --ink:#17202A; --soft:#4B5663; --line:#17202A;
+  --habit:#C7D1DC; --retest:#F1D2BF; --found:#B8411B; --foundInk:#FFFFFF; --win:#1F5E3A;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#1B222B; --panel:#252E39; --ink:#EEF1F5; --soft:#AEB8C4; --line:#8C99A8;
+    --habit:#34404E; --retest:#4A3328; --found:#D9582C; --foundInk:#FFFFFF; --win:#4FB07A;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#1B222B; --panel:#252E39; --ink:#EEF1F5; --soft:#AEB8C4; --line:#8C99A8;
+  --habit:#34404E; --retest:#4A3328; --found:#D9582C; --foundInk:#FFFFFF; --win:#4FB07A;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);font-family:Archivo,"Helvetica Neue",Helvetica,sans-serif;font-size:16px;line-height:1.4}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 20px 40px}
+header{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end;justify-content:space-between;margin-bottom:18px}
+h1{margin:0;font-family:"Archivo Black",Archivo,sans-serif;font-size:clamp(40px,7vw,72px);line-height:.95;letter-spacing:-.01em}
+.sub{color:var(--soft);font-weight:600;margin-top:6px}
+.controls{display:flex;flex-wrap:wrap;gap:10px}
+.seg{display:inline-flex;border:2px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{font:inherit;font-weight:700;background:var(--panel);color:var(--ink);border:0;padding:10px 16px;min-height:44px;cursor:pointer}
+.seg button+button{border-left:2px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--ground)}
+.status{display:flex;flex-wrap:wrap;align-items:baseline;gap:8px 28px;margin:0 0 14px}
+.count{font-family:"Archivo Black",Archivo,sans-serif;font-size:34px}
+.count small{font-family:Archivo,sans-serif;font-size:16px;font-weight:600;color:var(--soft)}
+.lines{font-weight:700;font-size:18px}
+.win{background:var(--win);color:#fff;font-weight:700;padding:6px 12px;border-radius:6px}
+.rules{color:var(--soft);margin:0 0 16px;max-width:70ch}
+.note{background:var(--panel);border:2px dashed var(--line);border-radius:8px;padding:10px 14px;margin:0 0 16px;font-weight:600}
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.sq{position:relative;min-height:150px;border:2px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;cursor:pointer}
+.sq.habit{background:var(--habit)}
+.sq.retest{background:var(--retest)}
+.sq.found{background:var(--found);color:var(--foundInk);border-color:var(--found)}
+.sq.inline{outline:4px solid var(--ink);outline-offset:2px}
+.sq:focus-visible,.seg button:focus-visible,.btn:focus-visible{outline:3px solid var(--found);outline-offset:3px}
+.sq[disabled]{cursor:default}
+.tag{font-size:13px;font-weight:700;opacity:.85}
+.txt{font-weight:700;font-size:clamp(15px,1.8vw,19px);line-height:1.25;flex-grow:1}
+.who{font-size:15px;font-weight:700;border-top:1px solid currentColor;padding-top:6px;min-height:28px;overflow-wrap:anywhere}
+.who.empty{font-weight:400;opacity:.7}
+.entry{display:flex;flex-direction:column;gap:6px}
+.entry input,dialog input{font:inherit;font-weight:600;padding:8px;border:2px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);width:100%}
+.entry .row,dialog .row{display:flex;gap:6px}
+.btn{font:inherit;font-weight:700;border:2px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:8px 12px;min-height:40px;cursor:pointer}
+.btn.primary{background:var(--ink);color:var(--ground)}
+.foot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-top:18px;color:var(--soft);font-size:15px}
+.foot .acts{display:flex;flex-wrap:wrap;gap:8px}
+dialog{border:2px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:18px;width:min(360px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h2{margin:0 0 6px;font-family:"Archivo Black",Archivo,sans-serif;font-size:22px}
+dialog p{margin:0 0 12px;color:var(--soft);font-weight:600}
+dialog .row{margin-top:12px;justify-content:flex-end}
+@media (max-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sq{min-height:130px}}
+@media (prefers-reduced-motion:no-preference){.sq.found{animation:pop .25s ease-out}}
+@keyframes pop{from{transform:scale(.96)}to{transform:scale(1)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Bug Bingo</h1>
+      <div class="sub" id="sub">End of Ember</div>
+    </div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Site">
+        <button type="button" data-site="sturt">Sturt St</button>
+        <button type="button" data-site="salisbury">Salisbury</button>
+      </div>
+      <div class="seg" role="group" aria-label="Build">
+        <button type="button" data-build="b2">Build 2</button>
+        <button type="button" data-build="b3">Build 3</button>
+      </div>
+    </div>
+  </header>
+
+  <div id="note" class="note" role="status" hidden></div>
+
+  <div class="status">
+    <div class="count" id="count">0 / 16 <small>found</small></div>
+    <div class="lines" id="lines">Lines: 0</div>
+    <div id="win" class="win" hidden>Full card. The room wins.</div>
+  </div>
+  <p class="rules" id="rules">One card for the whole room. We go through it together at the end of each build. A square counts if someone already posted it in Discord.</p>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="foot">
+    <div id="tip"></div>
+    <div class="acts">
+      <button type="button" class="btn" id="lock">Facilitator unlock</button>
+      <button type="button" class="btn" id="reset" hidden>Clear this card</button>
+    </div>
+  </div>
+</div>
+
+<dialog id="pinDlg" aria-labelledby="pinTitle">
+  <form method="dialog" id="pinForm">
+    <h2 id="pinTitle">Facilitator PIN</h2>
+    <p id="pinMsg">Enter the PIN to change the board.</p>
+    <input id="pinInput" type="password" autocomplete="off" aria-labelledby="pinTitle">
+    <div class="row">
+      <button type="button" class="btn" id="pinCancel">Cancel</button>
+      <button type="submit" class="btn primary">Unlock</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const CARDS = {
+  b2: {
+    label: "Build 2 · 260904",
+    tip: "Dev console: press ` (above Tab). Try RefillHatred.",
+    squares: [
+      ["find","Something in the wrong place blocks your way"],
+      ["habit","Reproduce someone else's bug"],
+      ["find","Something that should disappear, but doesn't"],
+      ["find","An enemy that's hard to hurt"],
+      ["habit","A ticket with a screenshot or clip"],
+      ["find","Déjà vu: you've been here before"],
+      ["find","A doorway you can see through but can't get through"],
+      ["find","Break a rule with a console command"],
+      ["find","Something that should hide you, but doesn't"],
+      ["habit","Both ways to open a door, tested"],
+      ["find","A move you can spam with no limit"],
+      ["feedback","Something runs out way too fast"],
+      ["find","Two actions at once that maybe shouldn't be"],
+      ["habit","Steps anyone could follow to see it"],
+      ["find","A door that stops more than just you"],
+      ["habit","Bug, or on purpose? Ask the room"]
+    ]
+  },
+  b3: {
+    label: "Build 3 · 260918r0",
+    tip: "Retest your Build 2 tickets first, then hunt.",
+    squares: [
+      ["retest","A Build 2 bug that's gone"],
+      ["find","Something there at the start that shouldn't be"],
+      ["habit","A retest comment in Jira"],
+      ["find","Push something where it shouldn't go"],
+      ["find","Something missing from the world"],
+      ["retest","A Build 2 bug that's still there"],
+      ["find","Enemies that just vanish"],
+      ["find","A sound that shouldn't be there"],
+      ["habit","Reproduce someone else's bug"],
+      ["find","A button with no sound"],
+      ["retest","Settle a Build 2 unknown: fixed or not?"],
+      ["find","Something you can see but can't reach"],
+      ["find","Something stuck after a roll"],
+      ["habit","A ticket with a screenshot or clip"],
+      ["find","A shot that goes through a wall"],
+      ["habit","Bug, or on purpose? Ask the room"]
+    ]
+  }
+};
+const TAGS = {find:"Find", habit:"QA habit", retest:"Retest", feedback:"Feedback"};
+const SITES = {sturt:"Sturt St", salisbury:"Salisbury"};
+const LINES = [];
+for (let r=0;r<4;r++) LINES.push([0,1,2,3].map(c=>r*4+c));
+for (let c=0;c<4;c++) LINES.push([0,1,2,3].map(r=>r*4+c));
+LINES.push([0,5,10,15],[3,6,9,12]);
+
+const API = "/api/card";
+const POLL_MS = 4000;
+
+function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
+function safeSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
+function safeDel(k){ try { localStorage.removeItem(k); } catch(e){} }
+function note(msg){ const n=document.getElementById("note"); n.textContent=msg||""; n.hidden=!msg; }
+
+const params = new URLSearchParams(location.search);
+let site = SITES[params.get("site")] ? params.get("site") : (SITES[safeGet("bb-site")] ? safeGet("bb-site") : "sturt");
+let build = CARDS[params.get("build")] ? params.get("build") : (CARDS[safeGet("bb-build")] ? safeGet("bb-build") : "b2");
+let pin = safeGet("bb-pin");
+const cards = {};          // "site-build" -> {index: {name}}, filled by the server
+let busy = false, editing = null, writeGen = 0, polling = false, offline = false;
+const grid = document.getElementById("grid");
+
+function key(){ return site + "-" + build; }
+function syncUrl(){
+  const u = new URL(location.href);
+  u.searchParams.set("site", site); u.searchParams.set("build", build);
+  history.replaceState(null, "", u);
+}
+
+// ---- PIN dialog ----
+const dlg = document.getElementById("pinDlg"), pinInput = document.getElementById("pinInput");
+function askPin(msg){
+  return new Promise(resolve=>{
+    document.getElementById("pinMsg").textContent = msg;
+    pinInput.value = "";
+    const done = v => { dlg.onclose = null; if (dlg.open) dlg.close(); resolve(v); };
+    document.getElementById("pinForm").onsubmit = e => {
+      e.preventDefault();
+      const v = pinInput.value.trim();
+      if (v) done(v); else pinInput.focus();
+    };
+    document.getElementById("pinCancel").onclick = () => done(null);
+    dlg.onclose = () => done(null);          // Esc
+    dlg.showModal(); pinInput.focus();
+  });
+}
+function forgetPin(){ pin = null; safeDel("bb-pin"); }
+
+// ---- Server calls ----
+async function send(payload){
+  if (busy) return false;
+  busy = true;
+  try {
+    if (!pin){ pin = await askPin("Enter the facilitator PIN to change the board."); if (!pin) return false; }
+    note("Saving…");
+    for (;;){
+      const res = await fetch(API, {
+        method: "POST",
+        headers: {"content-type":"application/json", "x-bingo-pin": pin},
+        body: JSON.stringify(Object.assign({site, build}, payload))
+      });
+      const data = await res.json().catch(()=>({}));
+      if (res.status === 401){
+        forgetPin(); note("");
+        pin = await askPin("That PIN didn't work. Try again.");
+        if (!pin) return false;
+        note("Saving…"); continue;
+      }
+      if (!res.ok){ note(data.error || "Couldn't save that. Try again."); return false; }
+      safeSet("bb-pin", pin);
+      writeGen++;
+      cards[data.key] = data.marks;
+      note(""); render();
+      return true;
+    }
+  } catch(e){
+    note("Couldn't reach the board. Check the connection and try again.");
+    return false;
+  } finally { busy = false; }
+}
+
+async function poll(){
+  if (polling || document.hidden) return;
+  polling = true;
+  const k = key(), gen = writeGen;
+  try {
+    const res = await fetch(API + "?site=" + encodeURIComponent(site) + "&build=" + encodeURIComponent(build), {cache:"no-store"});
+    if (!res.ok) throw new Error(res.status);
+    const data = await res.json();
+    if (offline){ offline = false; note(""); }
+    // Drop stale answers: card switched, or a save landed while this was in flight.
+    if (k !== key() || gen !== writeGen || busy) return;
+    const changed = JSON.stringify(cards[k]) !== JSON.stringify(data.marks);
+    cards[k] = data.marks;
+    if (changed && editing === null) render();
+  } catch(e){
+    if (!offline){ offline = true; note("Can't reach the board. Retrying…"); }
+  } finally { polling = false; }
+}
+
+// ---- Actions ----
+async function save(i, name){
+  name = (name||"").trim().slice(0,40); if (!name) return;
+  if (await send({action:"mark", index:i, name})) { editing = null; render(); }
+}
+function clearSquare(i){ send({action:"clear", index:i}); }
+
+// ---- Render ----
+function render(){
+  const card = CARDS[build], m = cards[key()] || {}, loading = !cards[key()];
+  document.querySelectorAll("[data-site]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.site===site));
+  document.querySelectorAll("[data-build]").forEach(b=>b.setAttribute("aria-pressed", b.dataset.build===build));
+  document.getElementById("sub").textContent = "End of Ember · " + SITES[site] + " · " + card.label;
+  document.getElementById("tip").textContent = card.tip;
+  document.getElementById("reset").hidden = loading || !pin;
+  document.getElementById("lock").textContent = pin ? "Lock editing" : "Facilitator unlock";
+  grid.replaceChildren();
+  card.squares.forEach(([kind,text],i)=>{
+    const found = m[i];
+    const el = document.createElement(editing===i ? "div" : "button");
+    el.className = "sq " + (found ? "found" : (kind==="habit" ? "habit" : kind==="retest" ? "retest" : ""));
+    const tag=document.createElement("div"); tag.className="tag"; tag.textContent=TAGS[kind];
+    const txt=document.createElement("div"); txt.className="txt"; txt.textContent=text;
+    el.append(tag,txt);
+    if (editing===i){
+      el.classList.add("inline");
+      const box=document.createElement("div"); box.className="entry";
+      const lab=document.createElement("label"); lab.textContent="Who found it?"; lab.htmlFor="nm"+i;
+      const inp=document.createElement("input"); inp.id="nm"+i; inp.maxLength=40; inp.autocomplete="off";
+      const row=document.createElement("div"); row.className="row";
+      const ok=document.createElement("button"); ok.type="button"; ok.className="btn primary"; ok.textContent="Mark found";
+      const no=document.createElement("button"); no.type="button"; no.className="btn"; no.textContent="Cancel";
+      ok.onclick=()=>save(i, inp.value);
+      no.onclick=()=>{ editing=null; render(); };
+      // preventDefault stops this Enter from also submitting the PIN dialog it may open.
+      inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); save(i, inp.value); } if(e.key==="Escape"){ editing=null; render(); } };
+      row.append(ok,no); box.append(lab,inp,row); el.append(box);
+      setTimeout(()=>inp.focus(),0);
+    } else {
+      el.type="button";
+      const who=document.createElement("div"); who.className="who"+(found?"":" empty");
+      who.textContent = found ? found.name : "Found by:";
+      el.append(who);
+      el.setAttribute("aria-label", text + (found ? ", found by " + found.name : ", not found yet"));
+      if (loading) el.disabled=true;
+      el.onclick=()=>{
+        if (loading || busy) return;
+        if (found){ if (confirm("Clear \"" + text + "\"?")) clearSquare(i); }
+        else { editing=i; render(); }
+      };
+    }
+    grid.append(el);
+  });
+  const n=Object.keys(m).length, lines=LINES.filter(l=>l.every(i=>m[i])).length;
+  const cnt=document.getElementById("count"); cnt.replaceChildren(document.createTextNode(n+" / 16 "));
+  const sm=document.createElement("small"); sm.textContent="found"; cnt.append(sm);
+  document.getElementById("lines").textContent="Lines: "+lines;
+  document.getElementById("win").hidden = n<16;
+}
+
+function pick(s,b){
+  site=s; build=b; editing=null;
+  safeSet("bb-site",site); safeSet("bb-build",build); syncUrl();
+  render(); poll();
+}
+document.querySelectorAll("[data-site]").forEach(b=>b.onclick=()=>pick(b.dataset.site, build));
+document.querySelectorAll("[data-build]").forEach(b=>b.onclick=()=>pick(site, b.dataset.build));
+document.getElementById("reset").onclick=()=>{
+  if (confirm("Clear every square on the " + SITES[site] + " " + CARDS[build].label + " card?")) send({action:"reset"});
+};
+document.getElementById("lock").onclick=async()=>{
+  if (pin){ forgetPin(); render(); return; }
+  const p = await askPin("Enter the PIN to mark and clear squares on this screen.");
+  if (p){ pin = p; render(); }   // checked by the server on the first change
+};
+document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) poll(); });
+
+syncUrl();
+render();
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Bug Bingo: static page + one function backed by Netlify Blobs.
+# This folder is its own Netlify site, separate from the QA tools site at the repo root.
+# base is relative to the git root; without it the CLI builds from the repo root.
+[build]
+  base = "bug-bingo"
+  publish = "public"
+  functions = "netlify/functions"
+
+[dev]
+  framework = "#static"
+  port = 8888
