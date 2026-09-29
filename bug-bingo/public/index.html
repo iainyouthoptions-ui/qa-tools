@@ -354,8 +354,8 @@ document.getElementById("reset").onclick=()=>{
 };
 document.getElementById("lock").onclick=async()=>{
   if (pin){ forgetPin(); render(); return; }
-  const p = await askPin("Enter the PIN to mark and clear squares on this screen.");
-  if (p){ pin = p; render(); }   // checked by the server on the first change
+  // Ask the server so a wrong PIN is caught now, not on the first clear.
+  if (await send({action:"check"})) flash("Unlocked. You can clear squares on this screen.");
 };
 document.addEventListener("visibilitychange", ()=>{ if (!document.hidden) poll(); });
 

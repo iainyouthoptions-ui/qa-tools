@@ -83,8 +83,13 @@ export default async (req) => {
     if (!name) return json(400, { error: "Name is required." });
     if (name.length > MAX_NAME) return json(400, { error: `Name must be ${MAX_NAME} characters or fewer.` });
   }
-  if (!["mark", "clear", "reset"].includes(action)) {
+  if (!["mark", "clear", "reset", "check"].includes(action)) {
     return json(400, { error: "Unknown action." });
+  }
+
+  // "check" just confirms the PIN (used by Facilitator unlock) and returns the card unchanged.
+  if (action === "check") {
+    return json(200, { key, marks: clean(await store.get(key, { type: "json" })) });
   }
 
   // Read-modify-write with an etag check so simultaneous saves can't clobber each other.
