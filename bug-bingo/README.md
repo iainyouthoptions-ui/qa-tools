@@ -25,13 +25,55 @@ npx netlify deploy --prod --no-build --dir public --functions netlify/functions
 4. `env:set` stores the PIN. Use 6 or more characters: wrong guesses are slowed down but not locked out. If `env:set` fails with "Missing required path variable 'account_id'" (a bug in CLI 27.10), add the variable in the Netlify dashboard instead: **Project configuration → Environment variables**.
 5. `deploy --prod` uploads `public/` and bundles the function.
 
-## Everyday use
+## Running a session
 
-- Deploy changes: `npm run deploy`
-- Change the PIN: run `npx netlify env:set BINGO_PIN "new-pin"`, then `npm run deploy`. Functions only pick up env changes on the next deploy. Facilitators whose saved PIN is now wrong get asked again.
-- Deep link to a card: `https://<name>.netlify.app/?site=salisbury&build=b3`
-- Trainees: tap an empty square, type your name, then **Mark found**. The first person to claim a square keeps it.
-- Facilitators: tap **Facilitator unlock**, or tap a marked square and enter the PIN when asked. The PIN is saved in that browser once the server accepts it. **Lock editing** removes it.
+Live site: https://bug-bingo-ember.netlify.app
+
+| Card | Link |
+|---|---|
+| Sturt St · Build 2 | https://bug-bingo-ember.netlify.app/?site=sturt&build=b2 |
+| Sturt St · Build 3 | https://bug-bingo-ember.netlify.app/?site=sturt&build=b3 |
+| Salisbury · Build 2 | https://bug-bingo-ember.netlify.app/?site=salisbury&build=b2 |
+| Salisbury · Build 3 | https://bug-bingo-ember.netlify.app/?site=salisbury&build=b3 |
+
+**Before the session**
+
+1. Open the card for your site and build and put it on the projector.
+2. Click **Facilitator unlock** and enter the PIN. That browser remembers it.
+3. If the card has leftover marks, click **Clear this card**.
+4. Test it: mark a square with your name, then tap it again to clear it.
+5. Post the card's link in Discord.
+
+**During the session**
+
+- Trainees tap an empty square, type their name and click **Mark found**. No PIN is needed, and their name is filled in next time.
+- Every open screen updates within about 5 seconds. Nobody needs to refresh.
+- If two people claim the same square, the first one keeps it.
+- To fix a mistake, tap the marked square and confirm. Only facilitators can clear squares.
+- Completing a line (any row, column or diagonal) plays a line animation. A full card fires confetti.
+
+**Moving to Build 3:** click **Build 3** or open its link. Each card is separate, so Build 2 marks stay.
+
+**After the session:** marks stay saved. On a shared computer, click **Lock editing**.
+
+## Everyday admin
+
+Run these from `C:\SRC tools\bug-bingo`. In Windows PowerShell, use `npm.cmd` and `npx.cmd`, because the plain `npm` and `npx` scripts are blocked there.
+
+- **Deploy changes:** `npm.cmd run deploy`. Each deploy costs 15 Netlify credits on the Free plan (300 a month), so test locally and deploy changes together.
+- **Change the PIN:** edit `BINGO_PIN` at https://app.netlify.com/projects/bug-bingo-ember/configuration/env, then deploy. The server only reads the new PIN after a deploy. Facilitators with the old PIN saved get asked for the new one.
+- **Change the squares:** edit the `CARDS` list in `public/index.html`, then deploy. Marks are tied to square positions, so rewording a square keeps its mark.
+- **Session cost:** about 4 credits an hour with 10 people watching.
+
+**If something goes wrong**
+
+| You see | What it means |
+|---|---|
+| "Can't reach the board. Retrying…" | Wi-Fi dropped. It reconnects on its own. |
+| The PIN prompt keeps coming back | The PIN was changed. Enter the new one. |
+| "Running scripts is disabled" | Use `npm.cmd` or `npx.cmd`. |
+| "Multiple possible build commands" | Press Ctrl+C and use `npm.cmd run deploy`. |
+| "Need to install the following packages" | You're in the wrong folder. Press Ctrl+C and `cd` into `bug-bingo`. |
 
 ## Local development
 
