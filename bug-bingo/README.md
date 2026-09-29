@@ -98,3 +98,14 @@ Then run `npm run dev` and open http://localhost:8888. Local data is kept in `.n
 ```
 
 The server checks each request: site must be `sturt` or `salisbury`, build must be `b2` or `b3`, index must be a whole number from 0 to 15, and name must be 1 to 40 characters with control characters removed. Updates use an etag check, so two people saving at the same moment can't overwrite each other.
+
+## Next steps: make it configurable
+
+The board is hard-coded for End of Ember. Sites, builds and squares live in two places that must match:
+
+- `public/index.html`: the `CARDS` list (build labels, tips, squares) and the `SITES` list (button names).
+- `netlify/functions/card.mjs`: the `SITES` and `BUILDS` sets the server accepts.
+
+To reuse it for other projects or games, move these into one shared config file (for example `public/config.json`). The page would fetch it, and the function would import it for validation. Stored marks are keyed by `site-build`, so give each project its own key prefix or its own Blobs store to keep boards separate.
+
+Release notes for the End of Ember sessions are in `release-notes/`.
