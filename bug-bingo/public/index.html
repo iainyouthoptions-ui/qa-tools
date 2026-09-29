@@ -40,7 +40,7 @@ h1{margin:0;font-family:"Archivo Black",Archivo,sans-serif;font-size:clamp(40px,
 .win{background:var(--win);color:#fff;font-weight:700;padding:6px 12px;border-radius:6px}
 .rules{color:var(--soft);margin:0 0 16px;max-width:70ch}
 .note{background:var(--panel);border:2px dashed var(--line);border-radius:8px;padding:10px 14px;margin:0 0 16px;font-weight:600}
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.grid{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
 .sq{position:relative;min-height:150px;border:2px solid var(--line);border-radius:8px;background:var(--panel);color:var(--ink);padding:12px;display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;cursor:pointer}
 .sq.habit{background:var(--habit)}
 .sq.retest{background:var(--retest)}
@@ -65,8 +65,24 @@ dialog h2{margin:0 0 6px;font-family:"Archivo Black",Archivo,sans-serif;font-siz
 dialog p{margin:0 0 12px;color:var(--soft);font-weight:600}
 dialog .row{margin-top:12px;justify-content:flex-end}
 @media (max-width:640px){.grid{grid-template-columns:repeat(2,minmax(0,1fr))}.sq{min-height:130px}}
-@media (prefers-reduced-motion:no-preference){.sq.found{animation:pop .25s ease-out}}
+/* Celebrations: line strike + square pulse, toast, full-card confetti */
+.strike{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:2}
+.strike line{stroke:var(--win);stroke-width:12;stroke-linecap:round;opacity:.9}
+.toast{position:fixed;left:50%;top:24px;transform:translateX(-50%);z-index:20;background:var(--win);color:#fff;border:3px solid var(--ink);border-radius:10px;padding:10px 28px;font-family:"Archivo Black",Archivo,sans-serif;font-size:clamp(28px,5vw,52px);line-height:1.1;text-align:center;box-shadow:0 8px 0 var(--ink);max-width:calc(100vw - 32px)}
+.toast small{display:block;font-family:Archivo,sans-serif;font-weight:700;font-size:16px}
+.confetti{position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:15}
+@media (prefers-reduced-motion:no-preference){
+  .sq.found{animation:pop .25s ease-out}
+  .sq.hit{animation:hit .8s ease-out both}
+  .strike line{animation:draw .5s ease-out forwards, fade .6s ease-in 1.9s forwards}
+  .toast{animation:toastIn .35s cubic-bezier(.2,1.6,.4,1) both}
+  .win.new{animation:hit .8s ease-out 2}
+}
 @keyframes pop{from{transform:scale(.96)}to{transform:scale(1)}}
+@keyframes hit{0%{transform:scale(1)}35%{transform:scale(1.07);box-shadow:0 0 0 6px var(--win)}100%{transform:scale(1);box-shadow:0 0 0 0 transparent}}
+@keyframes draw{to{stroke-dashoffset:0}}
+@keyframes fade{to{opacity:0}}
+@keyframes toastIn{from{transform:translateX(-50%) scale(.6);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
 </style>
 </head>
 <body>
@@ -107,6 +123,8 @@ dialog .row{margin-top:12px;justify-content:flex-end}
     </div>
   </div>
 </div>
+
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
 
 <dialog id="pinDlg" aria-labelledby="pinTitle">
   <form method="dialog" id="pinForm">
@@ -175,7 +193,7 @@ for (let c=0;c<4;c++) LINES.push([0,1,2,3].map(r=>r*4+c));
 LINES.push([0,5,10,15],[3,6,9,12]);
 
 const API = "/api/card";
-const POLL_MS = 4000;
+const POLL_MS = 5000;
 
 function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return null; } }
 function safeSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
@@ -340,6 +358,93 @@ function render(){
   const sm=document.createElement("small"); sm.textContent="found"; cnt.append(sm);
   document.getElementById("lines").textContent="Lines: "+lines;
   document.getElementById("win").hidden = n<16;
+  if (!loading) celebrate(m);
+}
+
+// ---- Celebrations ----
+// Remember which lines each card already had, so only newly completed ones celebrate
+// (not the ones already there when the page loads or you switch cards).
+const seen = {};   // key -> {lines:Set, full:bool}
+const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+let toastTimer = null;
+
+function celebrate(m){
+  const k = key();
+  const lines = new Set(LINES.map((l,i)=>l.every(j=>m[j]) ? i : -1).filter(i=>i>=0));
+  const full = Object.keys(m).length === 16;
+  const prev = seen[k];
+  seen[k] = {lines, full};
+  if (!prev) return;
+  const fresh = [...lines].filter(i=>!prev.lines.has(i));
+  if (full && !prev.full){
+    fresh.forEach(strike);
+    const w = document.getElementById("win"); w.classList.remove("new"); void w.offsetWidth; w.classList.add("new");
+    toast("FULL CARD!", "The room wins.", 6000);
+    confetti();
+  } else if (fresh.length){
+    fresh.forEach(strike);
+    const word = ["", "LINE!", "DOUBLE LINE!", "TRIPLE LINE!"][fresh.length] || fresh.length + " LINES!";
+    toast(word, "Lines: " + lines.size, 3500);
+  }
+}
+
+function strike(li){
+  const cells = grid.querySelectorAll(".sq");
+  LINES[li].forEach((j,n)=>{
+    const c = cells[j]; c.classList.remove("hit"); void c.offsetWidth;
+    c.style.animationDelay = (n*90) + "ms"; c.classList.add("hit");
+  });
+  // Draw a line through the squares only when the grid shows real rows (4 columns, not phone layout).
+  if (reduced || getComputedStyle(grid).gridTemplateColumns.split(" ").length !== 4) return;
+  const g = grid.getBoundingClientRect();
+  const mid = el => { const r = el.getBoundingClientRect(); return [r.left - g.left + r.width/2, r.top - g.top + r.height/2]; };
+  let [x1,y1] = mid(cells[LINES[li][0]]), [x2,y2] = mid(cells[LINES[li][3]]);
+  const dx = x2-x1, dy = y2-y1, len = Math.hypot(dx,dy), ext = 40;
+  x1 -= dx/len*ext; y1 -= dy/len*ext; x2 += dx/len*ext; y2 += dy/len*ext;
+  const NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg"); svg.setAttribute("class", "strike"); svg.setAttribute("aria-hidden", "true");
+  const ln = document.createElementNS(NS, "line");
+  [["x1",x1],["y1",y1],["x2",x2],["y2",y2]].forEach(([a,v])=>ln.setAttribute(a, v));
+  const total = len + ext*2;
+  ln.style.strokeDasharray = total; ln.style.strokeDashoffset = total;
+  svg.append(ln); grid.append(svg);
+  setTimeout(()=>svg.remove(), 2600);
+}
+
+function toast(big, small, ms){
+  const t = document.getElementById("toast");
+  t.replaceChildren(document.createTextNode(big));
+  const s = document.createElement("small"); s.textContent = small; t.append(s);
+  t.hidden = false; t.style.animation = "none"; void t.offsetWidth; t.style.animation = "";
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ t.hidden = true; }, ms);
+}
+
+function confetti(){
+  if (reduced) return;
+  const c = document.createElement("canvas"); c.className = "confetti"; document.body.append(c);
+  const dpr = devicePixelRatio || 1, W = innerWidth, H = innerHeight;
+  c.width = W*dpr; c.height = H*dpr;
+  const x = c.getContext("2d"); x.scale(dpr, dpr);
+  const cs = getComputedStyle(document.documentElement);
+  const cols = ["--found","--win","--retest","--habit","--ink"].map(v=>cs.getPropertyValue(v).trim());
+  // Two bursts from the bottom corners, arcing in towards the middle.
+  const ps = Array.from({length:220}, (_,i)=>{
+    const left = i % 2 === 0;
+    return { x: left ? 0 : W, y: H, vx: (left ? 1 : -1) * (4 + Math.random()*10), vy: -(12 + Math.random()*14),
+      w: 6 + Math.random()*6, h: 9 + Math.random()*9, r: Math.random()*6, vr: (Math.random()-.5)*.35,
+      c: cols[Math.random()*cols.length | 0] };
+  });
+  const t0 = performance.now(), dur = 4500;
+  (function tick(t){
+    const el = t - t0;
+    x.clearRect(0, 0, W, H);
+    x.globalAlpha = Math.max(0, Math.min(1, (dur - el) / 800));
+    for (const p of ps){
+      p.vy += .38; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      x.save(); x.translate(p.x, p.y); x.rotate(p.r); x.fillStyle = p.c; x.fillRect(-p.w/2, -p.h/2, p.w, p.h); x.restore();
+    }
+    if (el < dur) requestAnimationFrame(tick); else c.remove();
+  })(t0);
 }
 
 function pick(s,b){

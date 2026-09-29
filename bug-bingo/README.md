@@ -2,7 +2,7 @@
 
 Shared Bug Bingo board for the End of Ember QA training sessions. Anyone with the link can watch the board and mark an empty square with their name. Only facilitators with the PIN can clear a square or clear a whole card.
 
-- `public/index.html` is the page. It polls `/api/card` every 4 seconds.
+- `public/index.html` is the page. It polls `/api/card` every 5 seconds.
 - `netlify/functions/card.mjs` is the API. It stores one blob per card (`sturt-b2`, `sturt-b3`, `salisbury-b2`, `salisbury-b3`) in the `bug-bingo` Netlify Blobs store.
 - The PIN lives in the `BINGO_PIN` environment variable and is checked on the server.
 
