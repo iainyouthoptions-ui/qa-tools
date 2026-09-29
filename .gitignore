@@ -12,3 +12,7 @@ npm-debug.log*
 .DS_Store
 .vscode/
 .idea/
+
+# Netlify local state
+.netlify/
+.env
