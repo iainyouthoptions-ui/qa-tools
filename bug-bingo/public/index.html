@@ -95,7 +95,7 @@ dialog .row{margin-top:12px;justify-content:flex-end}
     <div class="lines" id="lines">Lines: 0</div>
     <div id="win" class="win" hidden>Full card. The room wins.</div>
   </div>
-  <p class="rules" id="rules">One card for the whole room. We go through it together at the end of each build. A square counts if someone already posted it in Discord.</p>
+  <p class="rules" id="rules">One card for the whole room. Mark a square as soon as your bug is posted in Discord.</p>
 
   <div class="grid" id="grid"></div>
 
@@ -181,6 +181,7 @@ function safeGet(k){ try { return localStorage.getItem(k); } catch(e){ return nu
 function safeSet(k,v){ try { localStorage.setItem(k,v); } catch(e){} }
 function safeDel(k){ try { localStorage.removeItem(k); } catch(e){} }
 function note(msg){ const n=document.getElementById("note"); n.textContent=msg||""; n.hidden=!msg; }
+function flash(msg){ note(msg); setTimeout(()=>{ if (document.getElementById("note").textContent===msg) note(""); }, 5000); }
 
 const params = new URLSearchParams(location.search);
 let site = SITES[params.get("site")] ? params.get("site") : (SITES[safeGet("bb-site")] ? safeGet("bb-site") : "sturt");
@@ -217,16 +218,19 @@ function askPin(msg){
 function forgetPin(){ pin = null; safeDel("bb-pin"); }
 
 // ---- Server calls ----
+// Marking is open to everyone; clear and reset need the facilitator PIN.
 async function send(payload){
   if (busy) return false;
+  const needsPin = payload.action !== "mark";
   busy = true;
   try {
-    if (!pin){ pin = await askPin("Enter the facilitator PIN to change the board."); if (!pin) return false; }
+    if (needsPin && !pin){ pin = await askPin("Enter the facilitator PIN to change the board."); if (!pin) return false; }
     note("Saving…");
     for (;;){
+      const headers = {"content-type":"application/json"};
+      if (needsPin) headers["x-bingo-pin"] = pin;
       const res = await fetch(API, {
-        method: "POST",
-        headers: {"content-type":"application/json", "x-bingo-pin": pin},
+        method: "POST", headers,
         body: JSON.stringify(Object.assign({site, build}, payload))
       });
       const data = await res.json().catch(()=>({}));
@@ -236,8 +240,14 @@ async function send(payload){
         if (!pin) return false;
         note("Saving…"); continue;
       }
+      if (data.taken){
+        // Someone beat us to this square: show their mark and drop the edit.
+        writeGen++; cards[data.key] = data.marks; editing = null;
+        render(); flash(data.error);
+        return false;
+      }
       if (!res.ok){ note(data.error || "Couldn't save that. Try again."); return false; }
-      safeSet("bb-pin", pin);
+      if (needsPin) safeSet("bb-pin", pin);
       writeGen++;
       cards[data.key] = data.marks;
       note(""); render();
@@ -271,6 +281,7 @@ async function poll(){
 // ---- Actions ----
 async function save(i, name){
   name = (name||"").trim().slice(0,40); if (!name) return;
+  safeSet("bb-name", name);   // pre-fill next time this person marks a square
   if (await send({action:"mark", index:i, name})) { editing = null; render(); }
 }
 function clearSquare(i){ send({action:"clear", index:i}); }
@@ -296,16 +307,16 @@ function render(){
       el.classList.add("inline");
       const box=document.createElement("div"); box.className="entry";
       const lab=document.createElement("label"); lab.textContent="Who found it?"; lab.htmlFor="nm"+i;
-      const inp=document.createElement("input"); inp.id="nm"+i; inp.maxLength=40; inp.autocomplete="off";
+      const inp=document.createElement("input"); inp.id="nm"+i; inp.maxLength=40; inp.autocomplete="off"; inp.value=safeGet("bb-name")||"";
       const row=document.createElement("div"); row.className="row";
       const ok=document.createElement("button"); ok.type="button"; ok.className="btn primary"; ok.textContent="Mark found";
       const no=document.createElement("button"); no.type="button"; no.className="btn"; no.textContent="Cancel";
       ok.onclick=()=>save(i, inp.value);
       no.onclick=()=>{ editing=null; render(); };
-      // preventDefault stops this Enter from also submitting the PIN dialog it may open.
+      // preventDefault keeps this Enter from reaching anything that opens in response.
       inp.onkeydown=e=>{ if(e.key==="Enter"){ e.preventDefault(); save(i, inp.value); } if(e.key==="Escape"){ editing=null; render(); } };
       row.append(ok,no); box.append(lab,inp,row); el.append(box);
-      setTimeout(()=>inp.focus(),0);
+      setTimeout(()=>{ inp.focus(); inp.select(); },0);
     } else {
       el.type="button";
       const who=document.createElement("div"); who.className="who"+(found?"":" empty");
@@ -315,7 +326,10 @@ function render(){
       if (loading) el.disabled=true;
       el.onclick=()=>{
         if (loading || busy) return;
-        if (found){ if (confirm("Clear \"" + text + "\"?")) clearSquare(i); }
+        if (found){
+          if (!pin) flash("Only a facilitator can clear a square.");
+          else if (confirm("Clear \"" + text + "\"?")) clearSquare(i);
+        }
         else { editing=i; render(); }
       };
     }

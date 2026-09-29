@@ -62,13 +62,14 @@ export default async (req) => {
   const key = cardKey(body.site, body.build);
   if (!key) return json(400, { error: "Unknown site or build." });
 
-  if (!pinMatches(req.headers.get("x-bingo-pin"))) {
+  const { action } = body;
+
+  // Anyone can mark an empty square; clearing and resetting are facilitator-only.
+  if (action !== "mark" && !pinMatches(req.headers.get("x-bingo-pin"))) {
     // Slow down guessing a little.
     await new Promise((r) => setTimeout(r, 750));
     return json(401, { error: "Wrong PIN." });
   }
-
-  const { action } = body;
   let index = null, name = null;
 
   if (action === "mark" || action === "clear") {
@@ -86,10 +87,14 @@ export default async (req) => {
     return json(400, { error: "Unknown action." });
   }
 
-  // Read-modify-write with an etag check so two facilitators can't clobber each other.
+  // Read-modify-write with an etag check so simultaneous saves can't clobber each other.
   for (let attempt = 0; attempt < 5; attempt++) {
     const current = await store.getWithMetadata(key, { type: "json" });
     const marks = clean(current?.data);
+
+    if (action === "mark" && marks[index]) {
+      return json(409, { error: `${marks[index].name} already marked that square.`, taken: true, key, marks });
+    }
 
     if (action === "mark") marks[index] = { name };
     else if (action === "clear") delete marks[index];

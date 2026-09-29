@@ -16,7 +16,7 @@ npm install
 npx netlify login
 npx netlify sites:create --name bug-bingo-ember
 npx netlify env:set BINGO_PIN "pick-a-pin"
-npx netlify deploy --prod
+npx netlify deploy --prod --no-build --dir public --functions netlify/functions
 ```
 
 1. `npm install` installs the Blobs client and the Netlify CLI into this folder, so you don't need a global install.
