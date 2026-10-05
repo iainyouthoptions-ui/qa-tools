@@ -1,0 +1,3615 @@
+<title>Workload Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style id="plannerStyle">
+/* Layout: status strip, cohort list, full-width timeline, then palette + weekly two-lane grid, then week summary. */
+:root {
+  --bg: #f5f3ee;
+  --bg-panel: #ffffff;
+  --bg-sunken: #ebe8e0;
+  --ink: #1c1c1a;
+  --ink-soft: #56544c;
+  --ink-faint: #8c8a82;
+  --rule: #d8d4ca;
+  --rule-soft: #e8e4d9;
+  --accent: #2d4a3e;
+  --accent-soft: #d6e2d8;
+  --warn: #9a2a2a;
+  --warn-soft: #f4dcdc;
+  --warn-stripe: rgba(154, 42, 42, 0.05);
+  --neil: #6b4e2e;
+  --neil-soft: #e8dcc8;
+  --iain: #2d4a3e;
+  --iain-soft: #d6e2d8;
+  --iain-lane: rgba(45, 74, 62, 0.04);
+  --neil-lane: rgba(107, 78, 46, 0.05);
+  --iain-label: rgba(45, 74, 62, 0.1);
+  --neil-label: rgba(107, 78, 46, 0.1);
+  --wf: #8a6a3a;
+  --wf-soft: #efe4d4;
+  --wf-ink: #5e4720;
+  --ace: #6a3e6a;
+  --ace-soft: #e8dde8;
+  --l1: #1a6f98;  --l1-soft: #dcebf3;  /* Level 1: modules 1–2 */
+  --l2: #4b4fa0;  --l2-soft: #e3e3f4;  /* Level 2: modules 3–5 */
+  --l3: #a8501f;  --l3-soft: #f6e3d6;  /* Level 3: ongoing, rolling intake */
+  --scrim: rgba(28, 28, 26, 0.4);
+  --shadow: 0 1px 0 rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+  --font-display: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #191a17; --bg-panel: #22231f; --bg-sunken: #2b2c27;
+    --ink: #ecebe4; --ink-soft: #b8b5a9; --ink-faint: #8a877b;
+    --rule: #3c3d36; --rule-soft: #30312b;
+    --accent: #8fbfa6; --accent-soft: #24382f;
+    --warn: #e88f8f; --warn-soft: #3f2323; --warn-stripe: rgba(232, 143, 143, 0.07);
+    --neil: #d4ae80; --neil-soft: #3a2e20;
+    --iain: #8fbfa6; --iain-soft: #24382f;
+    --iain-lane: rgba(143, 191, 166, 0.05); --neil-lane: rgba(212, 174, 128, 0.05);
+    --iain-label: rgba(143, 191, 166, 0.12); --neil-label: rgba(212, 174, 128, 0.12);
+    --wf: #c9a26a; --wf-soft: #352c1e; --wf-ink: #e3c79c;
+    --ace: #c99bc9; --ace-soft: #33263a;
+    --l1: #6cb8de; --l1-soft: #1b3140;
+    --l2: #9da1e6; --l2-soft: #282a48;
+    --l3: #e59266; --l3-soft: #3d2618;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow: 0 1px 0 rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.25);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #191a17; --bg-panel: #22231f; --bg-sunken: #2b2c27;
+  --ink: #ecebe4; --ink-soft: #b8b5a9; --ink-faint: #8a877b;
+  --rule: #3c3d36; --rule-soft: #30312b;
+  --accent: #8fbfa6; --accent-soft: #24382f;
+  --warn: #e88f8f; --warn-soft: #3f2323; --warn-stripe: rgba(232, 143, 143, 0.07);
+  --neil: #d4ae80; --neil-soft: #3a2e20;
+  --iain: #8fbfa6; --iain-soft: #24382f;
+  --iain-lane: rgba(143, 191, 166, 0.05); --neil-lane: rgba(212, 174, 128, 0.05);
+  --iain-label: rgba(143, 191, 166, 0.12); --neil-label: rgba(212, 174, 128, 0.12);
+  --wf: #c9a26a; --wf-soft: #352c1e; --wf-ink: #e3c79c;
+  --ace: #c99bc9; --ace-soft: #33263a;
+  --l1: #6cb8de; --l1-soft: #1b3140;
+  --l2: #9da1e6; --l2-soft: #282a48;
+  --l3: #e59266; --l3-soft: #3d2618;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow: 0 1px 0 rgba(0,0,0,0.2), 0 8px 24px rgba(0,0,0,0.25);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+  padding-block: 24px;
+  padding-inline: 24px;
+  min-height: 100vh;
+}
+
+@media (max-width: 640px) {
+  body { padding-block: 16px; padding-inline: 16px; }
+}
+
+.app { max-width: 1400px; margin: 0 auto; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Status strip */
+.status-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg-panel);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+.status-bar[data-state="published"] .status-dot { background: var(--accent); }
+.status-bar[data-state="dirty"] .status-dot { background: var(--warn); }
+.status-bar[data-state="dirty"] #statusText { color: var(--warn); font-weight: 600; }
+.status-spacer { flex: 1; }
+.status-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.title-block h1 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.title-block .subtitle, .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.scenarios { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.scenarios label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-right: 4px;
+}
+
+select, button, input[type="text"], input[type="number"], input[type="date"] {
+  font-family: var(--font-body);
+  font-size: 13px;
+  background: var(--bg-panel);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 7px 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+input[type="text"], input[type="number"], input[type="date"] { cursor: text; }
+
+button { font-weight: 500; transition: background 0.15s, border-color 0.15s; }
+button:hover:not(:disabled) { background: var(--bg-sunken); border-color: var(--ink-soft); }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+button.primary { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+button.primary:hover:not(:disabled) { background: var(--ink-soft); }
+button.warn { color: var(--warn); border-color: var(--warn-soft); }
+button.warn:hover:not(:disabled) { background: var(--warn-soft); }
+button.small { padding: 4px 10px; font-size: 12px; }
+
+/* Read-only view hides every editing affordance */
+.app.readonly .edit-only { display: none !important; }
+
+/* Section panels */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.panel-header.no-toggle { cursor: default; }
+.panel-header h2 { font-family: var(--font-display); font-weight: 500; font-size: 17px; }
+.panel-header .panel-meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+.panel-toggle { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); }
+.panel-body { padding: 20px; }
+.panel.collapsed .panel-body { display: none; }
+
+@media (max-width: 640px) {
+  .panel-body { padding: 14px; }
+  .panel-header { padding: 12px 14px; }
+}
+
+/* Cohort management */
+.cohort-list { display: flex; flex-direction: column; gap: 8px; }
+
+.cohort-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-sunken);
+  border-radius: 3px;
+  border-left: 3px solid var(--rule);
+}
+.cohort-row > * { min-width: 0; }
+.cohort-row.training { border-left-color: var(--l1); }
+.cohort-row.l3 { border-left-color: var(--l3); }
+.cohort-row.ace { border-left-color: var(--ace); }
+.cohort-row.wf { border-left-color: var(--wf); }
+.cohort-row.clash { border-left-color: var(--warn); }
+
+@media (max-width: 760px) {
+  .cohort-row { grid-template-columns: 1fr auto; }
+  .cohort-row .cohort-detail-wrap, .cohort-row .cohort-warnings { grid-column: 1 / -1; }
+}
+
+.cohort-row .cohort-name { font-weight: 600; font-size: 14px; }
+.cohort-row .cohort-detail { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); }
+.cohort-row .cohort-stat {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cohort-row .cohort-stat .value { color: var(--ink); font-weight: 600; }
+.cohort-warnings { font-family: var(--font-mono); font-size: 11px; }
+.cohort-warnings .clash-text { color: var(--warn); font-weight: 600; }
+.cohort-warnings .holiday-text { color: var(--warn); }
+
+.cohort-actions { display: flex; gap: 6px; }
+
+.no-cohorts {
+  padding: 28px 20px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  line-height: 1.6;
+  border: 1px dashed var(--rule);
+  border-radius: 4px;
+  max-width: 68ch;
+}
+.no-cohorts strong { color: var(--ink); }
+
+.add-buttons { display: flex; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+
+/* Forms */
+.form-row { display: grid; gap: 12px; margin-bottom: 12px; }
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 560px) {
+  .form-row.cols-2, .form-row.cols-3 { grid-template-columns: 1fr; }
+}
+
+.form-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 4px;
+}
+.form-field input, .form-field select { width: 100%; }
+
+.timeslot-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 6px;
+}
+
+.timeslot-btn {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg-panel);
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s;
+  font-weight: 400;
+}
+.timeslot-btn.selected { border-color: var(--accent); background: var(--accent-soft); }
+.timeslot-btn.taken { opacity: 0.45; cursor: not-allowed; }
+.timeslot-btn .ts-label { font-weight: 600; font-size: 13px; }
+.timeslot-btn .ts-time { font-family: var(--font-mono); font-size: 11px; color: var(--ink-faint); margin-top: 2px; }
+.timeslot-btn .ts-taken { font-size: 10px; color: var(--ink-faint); margin-top: 4px; }
+
+.check-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.check-tile .tile-title { font-weight: 600; font-size: 13px; }
+.check-tile .tile-sub { font-size: 11px; color: var(--ink-faint); font-family: var(--font-mono); margin-top: 2px; }
+
+/* Timeline */
+.timeline-grid {
+  position: relative;
+  height: 200px;
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.timeline-inner { position: relative; height: 100%; min-width: 100%; }
+
+.timeline-month {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-left: 1px dashed var(--rule);
+  padding-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 4px;
+  white-space: nowrap;
+}
+
+.timeline-week-cursor {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  z-index: 5;
+  pointer-events: none;
+}
+.timeline-week-cursor::before {
+  content: '';
+  position: absolute;
+  top: -4px; left: -4px;
+  width: 10px; height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.timeline-today {
+  position: absolute;
+  top: 0; bottom: 0;
+  border-left: 1px dotted var(--warn);
+  z-index: 4;
+  pointer-events: none;
+}
+.timeline-today span {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--warn);
+  background: var(--bg-panel);
+  padding: 0 3px;
+}
+
+.cohort-bar {
+  position: absolute;
+  height: 18px;
+  border-radius: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.cohort-bar:hover { opacity: 0.85; }
+.cohort-bar.training { background: var(--iain-soft); color: var(--iain); border: 1px solid var(--iain); }
+.cohort-bar.level-1 { background: var(--l1-soft); color: var(--l1); border: 1px solid var(--l1); border-radius: 2px 0 0 2px; }
+.cohort-bar.level-2 { background: var(--l2-soft); color: var(--l2); border: 1px solid var(--l2); border-left-width: 0; border-radius: 0 2px 2px 0; }
+.cohort-bar.l3 { background: var(--l3-soft); color: var(--l3); border: 1px solid var(--l3); }
+.cohort-bar.admin-week {
+  background: repeating-linear-gradient(-45deg, var(--bg-sunken), var(--bg-sunken) 4px, transparent 4px, transparent 8px);
+  color: var(--ink-faint);
+  border: 1px dashed var(--ink-faint);
+  font-style: italic;
+  font-size: 9px;
+}
+.cohort-bar.ace { background: var(--ace-soft); color: var(--ace); border: 1px solid var(--ace); }
+.cohort-bar.wf { background: var(--wf-soft); color: var(--wf-ink); border: 1px solid var(--wf); }
+
+.week-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule-soft);
+}
+.week-selector label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+.week-display { font-family: var(--font-display); font-size: 16px; font-weight: 500; min-width: 150px; }
+.week-nav { display: flex; gap: 4px; }
+input[type="range"] { flex: 1; min-width: 160px; max-width: 400px; accent-color: var(--accent); }
+
+/* Workload editor */
+.editor { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 16px; margin-bottom: 16px; }
+.app.readonly .editor { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 860px) {
+  .editor { grid-template-columns: minmax(0, 1fr); }
+  .palette { position: static !important; }
+  .palette-items { flex-direction: row !important; flex-wrap: wrap; }
+}
+
+.palette {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  height: fit-content;
+  position: sticky;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+}
+.palette h3 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+.palette-items { display: flex; flex-direction: column; gap: 6px; }
+.palette-item {
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: grab;
+  background: var(--bg-panel);
+  transition: all 0.15s;
+  user-select: none;
+}
+.palette-item:hover { background: var(--bg-sunken); border-color: var(--ink-soft); }
+.palette-item:active { cursor: grabbing; }
+.palette-item.training { background: var(--iain-soft); border-color: var(--iain); color: var(--iain); }
+.palette-item.wf { background: var(--wf-soft); border-color: var(--wf); color: var(--wf-ink); }
+.palette-item.ace { background: var(--ace-soft); border-color: var(--ace); color: var(--ace); }
+.palette-item.l3 { background: var(--l3-soft); border-color: var(--l3); color: var(--l3); }
+.palette-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+  line-height: 1.5;
+}
+
+.schedule {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  min-width: 0;
+}
+.schedule-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.schedule-header h3 { font-family: var(--font-display); font-weight: 500; font-size: 17px; }
+
+.override-badge, .derived-badge, .admin-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.override-badge { background: var(--accent-soft); color: var(--accent); }
+.derived-badge { background: var(--bg-sunken); color: var(--ink-faint); }
+.admin-badge {
+  margin-left: 4px;
+  background: repeating-linear-gradient(-45deg, var(--bg-sunken), var(--bg-sunken) 3px, transparent 3px, transparent 6px);
+  color: var(--ink-soft);
+  border: 1px dashed var(--ink-faint);
+}
+
+.schedule-totals { display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.total { display: flex; align-items: center; gap: 6px; }
+.total .name { color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.total .value { font-weight: 600; }
+.total .value.warn { color: var(--warn); }
+
+.grid-scroll { overflow-x: auto; }
+.grid { display: grid; grid-template-columns: 60px repeat(5, minmax(110px, 1fr)); min-width: 620px; }
+
+.grid-cell {
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 8px;
+  min-height: 70px;
+  position: relative;
+}
+.grid-cell:last-child { border-right: none; }
+.grid-cell.lane-iain { background: var(--iain-lane); }
+.grid-cell.lane-neil { background: var(--neil-lane); }
+.grid-cell.lane-iain.lane-divider { border-bottom: 2px solid var(--rule); }
+.grid-cell.holiday-day {
+  background: repeating-linear-gradient(-45deg, var(--warn-stripe), var(--warn-stripe) 6px, transparent 6px, transparent 12px);
+}
+
+.day-header {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 10px 8px;
+  background: var(--bg-sunken);
+  color: var(--ink-soft);
+  min-height: auto;
+}
+.day-header .day-date { font-size: 9px; font-weight: 400; color: var(--ink-faint); margin-top: 2px; }
+.day-header.holiday-header { color: var(--warn); background: var(--warn-soft); }
+.day-header.today-header { box-shadow: inset 0 -2px 0 var(--accent); color: var(--ink); }
+
+.person-label {
+  background: var(--bg-sunken);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 6px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--rule);
+}
+.person-label.iain { color: var(--iain); background: var(--iain-label); border-left: 4px solid var(--iain); }
+.person-label.neil { color: var(--neil); background: var(--neil-label); border-left: 4px solid var(--neil); }
+
+.slot { min-height: 70px; display: flex; flex-direction: column; gap: 4px; position: relative; }
+.slot-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  position: absolute;
+  top: 2px;
+  left: 4px;
+}
+.app:not(.readonly) .slot.empty { cursor: pointer; transition: background 0.15s; }
+.app:not(.readonly) .slot.empty:hover { background: var(--bg-sunken); }
+.slot.drop-target { background: var(--accent-soft); outline: 1px dashed var(--accent); }
+.slot.overload { background: var(--warn-soft); outline: 2px solid var(--warn); outline-offset: -2px; }
+
+.activity-block {
+  padding: 6px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.3;
+  position: relative;
+  margin-top: 14px;
+  border-left: 3px solid var(--rule);
+  background: var(--bg-panel);
+  color: var(--ink);
+}
+.activity-block + .activity-block { margin-top: 0; }
+.activity-block.editable { cursor: pointer; }
+.activity-block.holiday { background: var(--warn-soft); border-left-color: var(--warn); opacity: 0.75; }
+.activity-block.training { border-left-color: var(--iain); background: var(--iain-soft); }
+.activity-block.training[data-level="1"] { border-left-color: var(--l1); background: var(--l1-soft); }
+.activity-block.training[data-level="2"] { border-left-color: var(--l2); background: var(--l2-soft); }
+.activity-block.l3 { border-left-color: var(--l3); background: var(--l3-soft); }
+.level-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin-right: 4px;
+}
+.activity-block[data-level="1"] .level-tag { color: var(--l1); }
+.activity-block[data-level="2"] .level-tag { color: var(--l2); }
+.activity-block.l3 .level-tag { color: var(--l3); }
+.activity-block.wf { border-left-color: var(--wf); background: var(--wf-soft); }
+.activity-block.ace { border-left-color: var(--ace); background: var(--ace-soft); }
+.activity-block.makeup { border-left-style: dashed; border-left-width: 4px; }
+
+.activity-name { font-weight: 600; font-size: 11px; overflow-wrap: anywhere; }
+.activity-module { font-size: 10px; margin-top: 2px; opacity: 0.9; }
+
+.activity-delete {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+}
+.activity-block:hover .activity-delete, .activity-delete:focus-visible { opacity: 1; }
+.activity-delete:hover { color: var(--warn); background: none; }
+@media (hover: none) { .activity-delete { opacity: 1; } }
+
+.holiday-tag, .makeup-tag {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-top: 3px;
+}
+.holiday-tag { background: var(--warn-soft); color: var(--warn); }
+.makeup-tag { background: var(--accent-soft); color: var(--accent); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--scrim);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 100;
+}
+.modal-overlay.active { display: flex; }
+.modal {
+  background: var(--bg-panel);
+  color: var(--ink);
+  border-radius: 4px;
+  padding: 24px;
+  width: min(500px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+.modal.wide { width: min(560px, 100%); }
+.modal h3 { font-family: var(--font-display); font-weight: 500; font-size: 18px; margin-bottom: 16px; text-wrap: balance; }
+.modal-text { font-size: 13px; color: var(--ink-soft); line-height: 1.55; margin-bottom: 8px; white-space: pre-line; }
+.modal-field { margin-bottom: 12px; }
+.modal-field label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 4px;
+}
+.modal-field select, .modal-field input { width: 100%; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 20px; }
+
+/* Programme level legend */
+.module-legend {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.level-card {
+  padding: 10px 12px;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+  border-top: 3px solid var(--level-color);
+  background: var(--bg-panel);
+  min-width: 0;
+}
+.level-card.level-1 { --level-color: var(--l1); }
+.level-card.level-2 { --level-color: var(--l2); }
+.level-card.level-3 { --level-color: var(--l3); }
+.level-card .level-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.level-card .level-name { font-weight: 600; font-size: 13px; color: var(--level-color); }
+.level-card .level-length { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.06em; }
+.level-card .level-modules { font-size: 11px; color: var(--ink-soft); margin-top: 4px; line-height: 1.5; }
+.cohort-levels { font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); margin-top: 2px; }
+.cohort-levels .l1 { color: var(--l1); font-weight: 600; }
+.cohort-levels .l2 { color: var(--l2); font-weight: 600; }
+
+/* Holidays & closures */
+.cal-columns { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+.cal-columns h3 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+.cal-intro { font-size: 12px; color: var(--ink-soft); margin-bottom: 16px; max-width: 72ch; line-height: 1.5; }
+.cal-list { display: flex; flex-direction: column; gap: 4px; }
+.cal-row { display: grid; grid-template-columns: 140px minmax(0, 1fr) auto; gap: 6px; align-items: center; }
+.cal-row.closure { grid-template-columns: 130px 130px minmax(0, 1fr) auto; }
+.cal-row input { width: 100%; padding: 5px 8px; font-size: 12px; min-width: 0; }
+.cal-row.past { opacity: 0.55; }
+.cal-row.add-row { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--rule); }
+.cal-text { font-size: 12px; display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 6px; padding: 3px 0; }
+.cal-text .d { font-family: var(--font-mono); font-size: 11px; color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.cal-text.past { opacity: 0.55; }
+.cal-remove { padding: 3px 8px; color: var(--ink-faint); }
+.cal-remove:hover { color: var(--warn); }
+.cal-show-past { margin-top: 8px; }
+@media (max-width: 560px) {
+  .cal-row, .cal-row.closure { grid-template-columns: 1fr 1fr; }
+  .cal-row input[type="text"] { grid-column: 1 / -1; }
+}
+.slot-hint { font-size: 12px; color: var(--ink-faint); padding: 8px 0; grid-column: 1 / -1; }
+
+/* Holiday clash list */
+.holiday-clashes { background: var(--warn-soft); border-radius: 3px; padding: 12px 16px; margin-top: 12px; }
+.holiday-clashes h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--warn);
+  margin-bottom: 8px;
+}
+.holiday-clash-item { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 4px 0; font-size: 12px; }
+.holiday-clash-item .date { font-family: var(--font-mono); font-size: 11px; color: var(--warn); min-width: 60px; }
+.holiday-clash-item .module { color: var(--ink-soft); font-size: 11px; }
+.holiday-clash-item .reason { margin-left: auto; color: var(--warn); font-size: 11px; }
+
+/* Summary panel */
+.summary {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-top: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+}
+.summary-block h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+.summary-block .stat {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.summary-block .stat.warn { color: var(--warn); }
+.summary-block .detail { font-size: 12px; color: var(--ink-soft); line-height: 1.4; }
+.summary-block .detail .warn-text { color: var(--warn); font-weight: 600; }
+
+footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 20px);
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  width: max-content;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 10px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  z-index: 200;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; }
+}
+</style>
+
+<div id="app"></div>
+
+<template id="appTemplate">
+<div class="app readonly" id="appRoot">
+
+  <div class="status-bar" id="statusBar" data-state="view" role="status">
+    <span class="status-dot"></span>
+    <span id="statusText">Loading…</span>
+    <span class="status-spacer"></span>
+    <span class="status-actions" id="statusActions"></span>
+  </div>
+
+  <header>
+    <div class="title-block">
+      <h1>Workload Planner</h1>
+      <div class="subtitle">QA Programme · Iain &amp; Neil · 2026–27</div>
+    </div>
+    <div class="scenarios">
+      <label for="scenarioSelect">Scenario</label>
+      <select id="scenarioSelect"></select>
+      <button id="saveAsBtn" class="edit-only">Save as new scenario…</button>
+      <button id="exportBtn" class="edit-only">Export</button>
+      <button id="importBtn" class="edit-only">Import</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <button id="deleteBtn" class="warn edit-only">Delete scenario</button>
+      <button id="clearAllBtn" class="edit-only">Clear overrides</button>
+    </div>
+  </header>
+
+  <section class="panel" id="cohortPanel">
+    <div class="panel-header" id="cohortPanelHeader" role="button" tabindex="0" aria-expanded="true">
+      <div>
+        <h2>Programmes &amp; ongoing activities</h2>
+        <div class="panel-meta" id="cohortPanelMeta">— cohorts</div>
+      </div>
+      <div class="panel-toggle" id="cohortPanelToggle">▼</div>
+    </div>
+    <div class="panel-body">
+      <div class="module-legend" id="moduleLegend"></div>
+      <div class="cohort-list" id="cohortList"></div>
+      <div class="add-buttons edit-only">
+        <button id="addCohortBtn" class="primary">+ New Level 1–2 cohort</button>
+        <button id="addL3Btn">+ New Level 3 group</button>
+        <button id="addOngoingBtn">+ New ongoing activity</button>
+        <button id="autoFillBtn">⟳ Auto-fill rolling cohorts</button>
+      </div>
+      <div id="holidayClashes"></div>
+    </div>
+  </section>
+
+  <section class="panel collapsed" id="holidayPanel">
+    <div class="panel-header" id="holidayPanelHeader" role="button" tabindex="0" aria-expanded="false">
+      <div>
+        <h2>Holidays &amp; closures</h2>
+        <div class="panel-meta" id="holidayPanelMeta">—</div>
+      </div>
+      <div class="panel-toggle" id="holidayPanelToggle">▶</div>
+    </div>
+    <div class="panel-body">
+      <p class="cal-intro">No sessions run on these days. Level 1–2 cohorts that land on one get a makeup session at the end, so changing a date here moves cohort end dates.</p>
+      <div class="cal-columns">
+        <div>
+          <h3>Public holidays</h3>
+          <div class="cal-list" id="holidayList"></div>
+        </div>
+        <div>
+          <h3>Organisation closures</h3>
+          <div class="cal-list" id="closureList"></div>
+        </div>
+      </div>
+      <button class="small cal-show-past" id="showPastHolidaysBtn">Show past dates</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header no-toggle">
+      <h2>Programme timeline</h2>
+      <div class="panel-meta" id="timelineMeta"></div>
+    </div>
+    <div class="panel-body" style="padding-top: 12px;">
+      <div class="timeline-grid" id="timelineGrid">
+        <div class="timeline-inner" id="timelineInner"></div>
+      </div>
+      <div class="week-selector">
+        <label for="weekSlider">Week of</label>
+        <div class="week-display" id="weekDisplay">—</div>
+        <div class="week-nav">
+          <button class="small" id="prevWeekBtn" aria-label="Previous week">‹</button>
+          <button class="small" id="todayWeekBtn">This week</button>
+          <button class="small" id="nextWeekBtn" aria-label="Next week">›</button>
+        </div>
+        <input type="range" id="weekSlider" min="0" max="34" value="0">
+      </div>
+    </div>
+  </section>
+
+  <section class="editor">
+    <aside class="palette edit-only">
+      <h3>Add activities</h3>
+      <div class="palette-items">
+        <div class="palette-item training" draggable="true" data-type="training">Level 1–2 (manual)</div>
+        <div class="palette-item wf" draggable="true" data-type="wf">Work Foundations</div>
+        <div class="palette-item ace" draggable="true" data-type="ace">ACE</div>
+        <div class="palette-item l3" draggable="true" data-type="l3">Level 3 (manual)</div>
+      </div>
+      <div class="palette-hint">
+        Drag onto a slot, or click any empty slot to add. Cohorts and ongoing activities fill the week automatically. Edits here apply to this week only.
+      </div>
+    </aside>
+
+    <div class="schedule">
+      <div class="schedule-header">
+        <h3 id="scheduleTitle">Week of —</h3>
+        <div class="schedule-totals" id="scheduleTotals"></div>
+      </div>
+      <div class="grid-scroll">
+        <div class="grid" id="grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="summary" id="summary"></section>
+
+  <footer id="footerText">Workload Planner</footer>
+
+  <!-- Cohort form modal -->
+  <div class="modal-overlay" id="cohortFormModal">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="cohortFormTitle">
+      <h3 id="cohortFormTitle">New Level 1–2 cohort</h3>
+      <p class="modal-text" style="margin-bottom: 14px;">Runs Level 1 (Game Playtester, Game Bug Tester) then Level 2 (Lead Gameplay Tester, Test Case Writer, Test Plan Writer): 40 sessions over about 20 weeks.</p>
+      <div class="form-row cols-3">
+        <div class="form-field">
+          <label for="cohortNumberInput">Cohort number</label>
+          <input type="number" id="cohortNumberInput" min="1">
+        </div>
+        <div class="form-field">
+          <label for="cohortStartInput">Start date</label>
+          <input type="date" id="cohortStartInput">
+        </div>
+        <div class="form-field">
+          <label for="cohortParticipantsInput">Participants</label>
+          <input type="number" id="cohortParticipantsInput" min="1" max="20" value="6">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 16px;">
+        <label>Timeslot</label>
+        <div class="timeslot-buttons" id="timeslotButtons"></div>
+      </div>
+      <div class="form-field" id="facilitatorsField" hidden>
+        <label>Facilitator per day</label>
+        <div id="facilitatorPerDay" style="display: grid; gap: 8px; margin-top: 6px;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cohortFormCancel">Cancel</button>
+        <button id="cohortFormSave" class="primary">Generate schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ongoing activity form modal -->
+  <div class="modal-overlay" id="ongoingFormModal">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="ongoingFormTitle">
+      <h3 id="ongoingFormTitle">New ongoing activity</h3>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="ongoingNameInput">Name</label>
+          <input type="text" id="ongoingNameInput" placeholder="e.g. Work Foundations">
+        </div>
+        <div class="form-field">
+          <label for="ongoingTypeSelect">Type</label>
+          <select id="ongoingTypeSelect">
+            <option value="wf">Work Foundations</option>
+            <option value="ace">ACE</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="ongoingStartInput">Start date</label>
+          <input type="date" id="ongoingStartInput">
+        </div>
+        <div class="form-field">
+          <label for="ongoingEndInput">End date (blank = ongoing)</label>
+          <input type="date" id="ongoingEndInput">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 12px;">
+        <label for="ongoingFacilitatorSelect">Facilitator</label>
+        <select id="ongoingFacilitatorSelect">
+          <option value="iain">Iain</option>
+          <option value="neil">Neil</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Days &amp; sessions</label>
+        <div id="ongoingDaysGrid" style="display: grid; grid-template-columns: 80px repeat(2, 1fr); gap: 6px; margin-top: 6px;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="ongoingFormCancel">Cancel</button>
+        <button id="ongoingFormSave" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Level 3 group modal -->
+  <div class="modal-overlay" id="l3FormModal">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="l3FormTitle">
+      <h3 id="l3FormTitle">New Level 3 group</h3>
+      <p class="modal-text" style="margin-bottom: 14px;">Level 3 holds a training timeslot with no set finish. Intake is rolling and each participant stays for up to 6 months.</p>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="l3NameInput">Name</label>
+          <input type="text" id="l3NameInput" placeholder="e.g. Level 3">
+        </div>
+        <div class="form-field">
+          <label for="l3ParticipantsInput">Current participants</label>
+          <input type="number" id="l3ParticipantsInput" min="0" max="20" value="6">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="l3StartInput">Start date</label>
+          <input type="date" id="l3StartInput">
+        </div>
+        <div class="form-field">
+          <label for="l3EndInput">End date (blank = ongoing)</label>
+          <input type="date" id="l3EndInput">
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 16px;">
+        <label>Timeslot</label>
+        <div class="timeslot-buttons" id="l3TimeslotButtons"></div>
+      </div>
+      <div class="form-field" id="l3FacilitatorsField" hidden>
+        <label>Facilitator per day</label>
+        <div id="l3FacilitatorPerDay" style="display: grid; gap: 8px; margin-top: 6px;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="l3FormCancel">Cancel</button>
+        <button id="l3FormSave" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-fill rolling cohorts modal -->
+  <div class="modal-overlay" id="autoFillModal">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="autoFillTitle">
+      <h3 id="autoFillTitle">Auto-fill rolling cohorts</h3>
+      <p class="modal-text" style="margin-bottom: 16px;">Generates a continuous flow of cohorts in the selected timeslots. Each new cohort starts one admin week after the previous one ends in the same slot. Existing cohorts are kept. Slots held by a Level 3 group are skipped while the group runs.</p>
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Timeslots to fill</label>
+        <div id="autoFillSlots" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; margin-top: 6px;"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="autoFillStartNum">Start cohort number from</label>
+          <input type="number" id="autoFillStartNum" min="1">
+        </div>
+        <div class="form-field">
+          <label for="autoFillEndDate">Fill until (end date)</label>
+          <input type="date" id="autoFillEndDate">
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label for="autoFillFacilitator">Facilitator for new cohorts</label>
+          <select id="autoFillFacilitator">
+            <option value="neil">Neil (both days)</option>
+            <option value="iain">Iain (both days)</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="autoFillParticipants">Participants per cohort</label>
+          <input type="number" id="autoFillParticipants" min="1" max="20" value="6">
+        </div>
+      </div>
+      <div class="form-field" style="margin-top: 6px; padding-top: 14px; border-top: 1px solid var(--rule-soft);">
+        <label class="check-tile" style="text-transform: none; letter-spacing: 0; border: none; padding: 0; background: none;">
+          <input type="checkbox" id="autoFillIncludeWF" checked>
+          <span style="font-family: var(--font-body); font-size: 13px; color: var(--ink);">Also create Work Foundations (Wed/Thu/Fri AM &amp; PM, Iain)</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="autoFillCancel">Cancel</button>
+        <button id="autoFillRun" class="primary">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Slot activity modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h3 id="modalTitle">Add activity</h3>
+      <div class="modal-field">
+        <label for="activityTypeSelect">Activity</label>
+        <select id="activityTypeSelect">
+          <option value="training">Level 1–2 training</option>
+          <option value="l3">Level 3</option>
+          <option value="wf">Work Foundations</option>
+          <option value="ace">ACE</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label for="cohortInput">Detail (cohort, notes)</label>
+        <input type="text" id="cohortInput" placeholder="e.g. Cohort 11, notes">
+      </div>
+      <div class="modal-actions">
+        <button id="modalCancel">Cancel</button>
+        <button id="modalSave" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save As modal -->
+  <div class="modal-overlay" id="saveAsModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveAsTitle">
+      <h3 id="saveAsTitle">Save as new scenario</h3>
+      <div class="modal-field">
+        <label for="saveAsInput">Scenario name</label>
+        <input type="text" id="saveAsInput" placeholder="e.g. Proposed July onwards">
+      </div>
+      <div class="modal-actions">
+        <button id="saveAsCancel">Cancel</button>
+        <button id="saveAsConfirm" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation modal (the hosted viewer blocks alert/confirm) -->
+  <div class="modal-overlay" id="confirmModal">
+    <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
+      <h3 id="confirmTitle">Are you sure?</h3>
+      <p class="modal-text" id="confirmMessage"></p>
+      <div class="modal-actions" id="confirmActions"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</div>
+</template>
+
+<script type="application/json" id="plannerData">{"scheduleVersion":3,"updatedAt":null,"scenarios":{"Current state":{"cohorts":[],"ongoing":[],"overrides":{}}}}</script>
+
+<script id="plannerScript">
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const DEFAULT_HOLIDAYS = [
+  { date: "2026-01-01", name: "New Year's Day" },
+  { date: "2026-01-26", name: "Australia Day" },
+  { date: "2026-03-09", name: "Adelaide Cup" },
+  { date: "2026-04-03", name: "Good Friday" },
+  { date: "2026-04-04", name: "Easter Saturday" },
+  { date: "2026-04-06", name: "Easter Monday" },
+  { date: "2026-04-25", name: "ANZAC Day" },
+  { date: "2026-06-08", name: "King's Birthday" },
+  { date: "2026-10-05", name: "Labour Day" },
+  { date: "2026-12-25", name: "Christmas Day" },
+  { date: "2026-12-26", name: "Proclamation Day" },
+  { date: "2026-12-28", name: "Proclamation Day (additional)" },
+  { date: "2027-01-01", name: "New Year's Day" },
+  { date: "2027-01-26", name: "Australia Day" },
+  { date: "2027-03-08", name: "Adelaide Cup" },
+  { date: "2027-03-26", name: "Good Friday" },
+  { date: "2027-03-27", name: "Easter Saturday" },
+  { date: "2027-03-29", name: "Easter Monday" },
+  { date: "2027-04-25", name: "ANZAC Day" },
+  { date: "2027-06-14", name: "King's Birthday" },
+  { date: "2027-10-04", name: "Labour Day" },
+  { date: "2027-12-25", name: "Christmas Day" },
+  { date: "2027-12-27", name: "Christmas Day (additional)" },
+  { date: "2027-12-28", name: "Proclamation Day (additional)" },
+];
+
+// Organisational closure periods (Christmas / New Year shutdown), inclusive.
+// Every weekday in the range counts as a closure day.
+// These are only the starting values: the live list is part of the published plan
+// and is edited in the Holidays & closures panel.
+const DEFAULT_CLOSURES = [
+  { start: "2025-12-19", end: "2026-01-11", name: "Christmas closure" },
+  { start: "2026-12-18", end: "2027-01-11", name: "Christmas closure (projected)" },
+];
+
+// Expand closure ranges into individual date entries that look like holidays
+// Expand closure ranges into individual date entries that look like holidays
+function expandClosures() {
+  const dates = [];
+  for (const closure of calendar.closures) {
+    const end = parseDate(closure.end);
+    for (let cur = parseDate(closure.start); cur <= end; cur = addDays(cur, 1)) {
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) dates.push({ date: formatDateISO(cur), name: closure.name });
+    }
+  }
+  return dates;
+}
+
+const MODULES = [
+  { id: 1, level: 1, name: "Game Playtester", short: "Playtester", weeks: 4 },
+  { id: 2, level: 1, name: "Game Bug Tester", short: "Bug Tester", weeks: 4 },
+  { id: 3, level: 2, name: "Lead Gameplay Tester", short: "Lead Gameplay", weeks: 4 },
+  { id: 4, level: 2, name: "Test Case Writer", short: "Test Case", weeks: 4 },
+  { id: 5, level: 2, name: "Test Plan Writer", short: "Test Plan", weeks: 4 },
+];
+
+// Level 1 and 2 run back to back as one cohort; Level 3 is a separate, open-ended group.
+const LEVELS = [
+  { id: 1, name: 'Level 1', length: '8 weeks', detail: 'Game Playtester · Game Bug Tester' },
+  { id: 2, name: 'Level 2', length: '12 weeks', detail: 'Lead Gameplay Tester · Test Case Writer · Test Plan Writer' },
+  { id: 3, name: 'Level 3', length: 'Ongoing', detail: 'Holds a training slot with no set finish. Rolling intake, up to 6 months per participant.' },
+];
+
+function moduleLevel(moduleId) {
+  const m = MODULES.find(m => m.id === moduleId);
+  return m ? m.level : null;
+}
+
+const TIMESLOTS = [
+  { id: "mw-am", label: "Mon/Wed Morning", days: ["Mon", "Wed"], session: "am", time: "9:30am – 12:30pm", short: "Mon/Wed AM" },
+  { id: "mw-pm", label: "Mon/Wed Afternoon", days: ["Mon", "Wed"], session: "pm", time: "1:30pm – 4:30pm", short: "Mon/Wed PM" },
+  { id: "tt-am", label: "Tue/Thu Morning", days: ["Tue", "Thu"], session: "am", time: "9:30am – 12:30pm", short: "Tue/Thu AM" },
+  { id: "tt-pm", label: "Tue/Thu Afternoon", days: ["Tue", "Thu"], session: "pm", time: "1:30pm – 4:30pm", short: "Tue/Thu PM" },
+  { id: "wf-am", label: "Wed/Fri Morning", days: ["Wed", "Fri"], session: "am", time: "9:30am – 12:30pm", short: "Wed/Fri AM" },
+  { id: "wf-pm", label: "Wed/Fri Afternoon", days: ["Wed", "Fri"], session: "pm", time: "1:30pm – 4:30pm", short: "Wed/Fri PM" },
+];
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const SESSIONS = ['am', 'pm'];
+const PEOPLE = ['iain', 'neil'];
+const DAY_INDEX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+
+const ACTIVITY_LABELS = {
+  training: 'Level 1–2',
+  l3: 'Level 3',
+  wf: 'Work Foundations',
+  ace: 'ACE',
+};
+
+// Weekly delivery thresholds (hours)
+const IAIN_MAX_HOURS = 27;
+const NEIL_MAX_HOURS = 15;
+
+// Timeline range
+const TIMELINE_START = new Date(2026, 4, 18); // 18 May 2026 (Monday)
+const WEEKS_BASE = 33; // minimum horizon
+
+const SCHEDULE_VERSION = 3; // bump when holiday/closure data or schedule logic changes
+const DRAFT_KEY = 'workload-planner-draft';
+const VIEW_KEY = 'workload-planner-view';
+
+// ============================================================================
+// SMALL HELPERS
+// ============================================================================
+
+const $ = id => document.getElementById(id);
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function personName(p) { return p === 'neil' ? 'Neil' : 'Iain'; }
+
+function storageGet(store, key) {
+  if (!store) return null; try { const raw = store.getItem(key); return raw ? JSON.parse(raw) : null; } catch (_) { return null; }
+}
+function storageSet(store, key, value) {
+  if (!store) return; try { store.setItem(key, JSON.stringify(value)); } catch (_) {}
+}
+function storageRemove(store, key) {
+  if (!store) return; try { store.removeItem(key); } catch (_) {}
+}
+function local() { try { return window.localStorage; } catch (_) { return null; } }
+function session() { try { return window.sessionStorage; } catch (_) { return null; } }
+
+let toastTimer = null;
+function toast(message, ms = 3500) {
+  const el = $('toast');
+  el.textContent = message;
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { el.hidden = true; }, ms);
+}
+
+// In-page replacement for confirm(): resolves with the chosen button's value, or null on cancel.
+function askChoice(title, message, buttons) {
+  return new Promise(resolve => {
+    const overlay = $('confirmModal');
+    $('confirmTitle').textContent = title;
+    $('confirmMessage').textContent = message || '';
+    const actions = $('confirmActions');
+    actions.innerHTML = '';
+    const finish = value => {
+      overlay.classList.remove('active');
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = e => { if (e.key === 'Escape') finish(null); };
+    document.addEventListener('keydown', onKey);
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.textContent = b.label;
+      if (b.kind) btn.className = b.kind;
+      btn.addEventListener('click', () => finish(b.value));
+      actions.appendChild(btn);
+    });
+    overlay.classList.add('active');
+    const primary = actions.querySelector('button:last-child');
+    if (primary) primary.focus();
+  });
+}
+
+async function askConfirm(title, message, okLabel = 'OK', danger = false) {
+  const v = await askChoice(title, message, [
+    { label: 'Cancel', value: false },
+    { label: okLabel, value: true, kind: danger ? 'warn' : 'primary' },
+  ]);
+  return v === true;
+}
+
+// ============================================================================
+// DATE HELPERS
+// ============================================================================
+
+// The calendar in use: the working copy's holidays and closures.
+let calendar = { holidays: DEFAULT_HOLIDAYS, closures: DEFAULT_CLOSURES };
+let _holidayLookup = null;
+
+function setCalendar(cal) {
+  calendar = cal;
+  _holidayLookup = null;
+}
+
+function isHoliday(dateStr) {
+  if (!_holidayLookup) {
+    _holidayLookup = {};
+    expandClosures().forEach(c => { _holidayLookup[c.date] = c; });
+    calendar.holidays.forEach(h => { _holidayLookup[h.date] = h; }); // public holiday names win
+  }
+  return _holidayLookup[dateStr] || undefined;
+}
+
+function formatDateISO(d) {
+  // Local-time YYYY-MM-DD (avoids timezone shifts from toISOString)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function parseDate(s) {
+  // Parse YYYY-MM-DD as local date
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function getNextWeekday(startDate, targetDay) {
+  const start = parseDate(startDate);
+  const startDow = (start.getDay() + 6) % 7; // Mon=0, Sun=6
+  let diff = DAY_INDEX[targetDay] - startDow;
+  if (diff < 0) diff += 7;
+  return addDays(start, diff);
+}
+
+function getMondayOf(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const dow = (d.getDay() + 6) % 7;
+  return addDays(d, -dow);
+}
+
+function weekIndexFromDate(date) {
+  // Returns week index relative to TIMELINE_START
+  const mon = getMondayOf(date);
+  const diffMs = mon - TIMELINE_START;
+  return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+function weekStartDate(weekIdx) {
+  return addDays(TIMELINE_START, weekIdx * 7);
+}
+
+function formatWeekLabel(weekIdx) {
+  return weekStartDate(weekIdx).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function formatStamp(iso) {
+  if (!iso) return null;
+  const d = new Date(iso);
+  if (isNaN(d)) return null;
+  return d.toLocaleString('en-AU', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+function todayWeekIdx() {
+  return weekIndexFromDate(new Date());
+}
+
+// ============================================================================
+// COHORT SCHEDULE GENERATION
+// ============================================================================
+
+function generateSchedule(startDate, timeslotId) {
+  const timeslot = TIMESLOTS.find(t => t.id === timeslotId);
+  if (!timeslot) return [];
+
+  const sessions = [];
+  let sessionCount = 0;
+  const totalSessions = 40;
+
+  const [day1, day2] = timeslot.days;
+  const cursor1 = getNextWeekday(startDate, day1);
+  const cursor2 = getNextWeekday(startDate, day2);
+
+  const allDates = [];
+  const weeksNeeded = 40; // comfortably accommodates Christmas closures
+  for (let w = 0; w < weeksNeeded; w++) {
+    allDates.push({ date: addDays(cursor1, w * 7), day: day1 });
+    allDates.push({ date: addDays(cursor2, w * 7), day: day2 });
+  }
+  allDates.sort((a, b) => a.date - b.date);
+
+  let moduleIndex = 0;
+  let weekInModule = 1;
+  let sessionsInWeek = 0;
+  let moduleSessionNum = 0;
+  let holidayCount = 0;
+  const holidayDates = [];
+
+  for (const slot of allDates) {
+    if (sessionCount >= totalSessions) break;
+
+    const dateStr = formatDateISO(slot.date);
+    const holiday = isHoliday(dateStr);
+    const mod = MODULES[moduleIndex];
+
+    sessions.push({
+      dateStr,
+      day: slot.day,
+      session: timeslot.session,
+      moduleId: mod.id,
+      moduleName: mod.name,
+      moduleIndex: moduleIndex + 1,
+      weekInModule,
+      sessionNumber: sessionCount + 1,
+      moduleSessionNumber: holiday ? null : moduleSessionNum + 1,
+      isHoliday: !!holiday,
+      holidayName: holiday ? holiday.name : null,
+      isMakeup: false, // flagged retroactively once the count is known
+    });
+
+    if (holiday) {
+      holidayCount++;
+      holidayDates.push({ date: dateStr, name: holiday.name });
+    } else {
+      sessionCount++;
+      sessionsInWeek++;
+      moduleSessionNum++;
+      if (sessionsInWeek >= 2) {
+        sessionsInWeek = 0;
+        weekInModule++;
+        if (weekInModule > mod.weeks) {
+          weekInModule = 1;
+          moduleIndex++;
+          moduleSessionNum = 0;
+        }
+      }
+    }
+  }
+
+  // Flag the last N real sessions as makeup, where N = number of holiday-affected sessions
+  if (holidayCount > 0) {
+    const realSessionIndices = [];
+    sessions.forEach((s, i) => { if (!s.isHoliday) realSessionIndices.push(i); });
+    const makeupIndices = realSessionIndices.slice(-holidayCount);
+    makeupIndices.forEach((i, k) => {
+      sessions[i].isMakeup = true;
+      if (holidayDates[k]) sessions[i].makeupFor = holidayDates[k];
+    });
+  }
+
+  return sessions;
+}
+
+// ============================================================================
+// STATE
+// ============================================================================
+// The shared plan lives in the #plannerData block of this page. Editors change a
+// working copy and publish a new version of the page; everyone else sees the
+// latest published version. Which scenario and week you are looking at is yours
+// alone and is remembered in this browser.
+
+function defaultScenario() {
+  return { cohorts: [], ongoing: [], overrides: {} };
+}
+
+function normalizeScenario(scn) {
+  scn = scn && typeof scn === 'object' ? scn : {};
+  if (!Array.isArray(scn.cohorts)) scn.cohorts = [];
+  if (!Array.isArray(scn.ongoing)) scn.ongoing = [];
+  if (!scn.overrides || typeof scn.overrides !== 'object') scn.overrides = {};
+  scn.ongoing.forEach(o => {
+    if (!Array.isArray(o.slots)) o.slots = [];
+    if (o.type === 'continuation') o.type = 'l3'; // "QA Open Studio" was the working title for Level 3
+    if (o.type === 'l3' && o.name === 'Level 3 · NDIS') o.name = 'Level 3'; // earlier default name
+  });
+  Object.values(scn.overrides).forEach(week => {
+    if (Array.isArray(week)) week.forEach(a => { if (a.type === 'continuation') a.type = 'l3'; });
+  });
+  scn.cohorts.forEach(c => { if (!Array.isArray(c.sessions)) c.sessions = []; });
+  return scn;
+}
+
+function normalizeScenarios(scenarios) {
+  const out = scenarios && typeof scenarios === 'object' ? scenarios : {};
+  Object.keys(out).forEach(k => { out[k] = normalizeScenario(out[k]); });
+  if (!out['Current state']) out['Current state'] = defaultScenario();
+  return out;
+}
+
+function regenerateSessions(scenarios) {
+  Object.values(scenarios).forEach(scn => {
+    scn.cohorts.forEach(c => {
+      if (c.startDate && c.timeslotId) c.sessions = generateSchedule(c.startDate, c.timeslotId);
+    });
+  });
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+function normalizeCalendar(cal) {
+  if (!cal || typeof cal !== 'object') cal = { holidays: DEFAULT_HOLIDAYS, closures: DEFAULT_CLOSURES };
+  const holidays = (Array.isArray(cal.holidays) ? cal.holidays : [])
+    .filter(h => h && ISO_DATE.test(h.date))
+    .map(h => ({ date: h.date, name: String(h.name || 'Public holiday') }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const closures = (Array.isArray(cal.closures) ? cal.closures : [])
+    .filter(c => c && ISO_DATE.test(c.start) && ISO_DATE.test(c.end) && c.end >= c.start)
+    .map(c => ({ start: c.start, end: c.end, name: String(c.name || 'Closure') }))
+    .sort((a, b) => a.start.localeCompare(b.start));
+  return { holidays, closures };
+}
+
+function sharedJSON(scenarios, cal) {
+  return JSON.stringify({ scenarios, calendar: cal });
+}
+
+let published = { scheduleVersion: SCHEDULE_VERSION, updatedAt: null, scenarios: {} };
+try { published = JSON.parse($('plannerData').textContent) || published; } catch (_) {}
+published.scenarios = normalizeScenarios(published.scenarios);
+published.calendar = normalizeCalendar(published.calendar);
+setCalendar(published.calendar);
+if (published.scheduleVersion !== SCHEDULE_VERSION) {
+  regenerateSessions(published.scenarios);
+}
+const publishedJSON = sharedJSON(published.scenarios, published.calendar);
+
+let state = {
+  currentScenario: 'Current state',
+  currentWeek: 0,
+  scenarios: structuredClone(published.scenarios),
+  calendar: structuredClone(published.calendar),
+};
+setCalendar(state.calendar);
+let showPastHolidays = false;
+
+// 'pending' until the viewer tells us who this is; 'local' when opened as a plain file.
+let mode = 'pending';
+let artifactApi = null;
+let downloadsApi = null;
+let publishing = false;
+let draftOffer = null; // an unpublished draft from an earlier visit, offered for restore
+
+function isEditable() { return mode === 'edit' || mode === 'local'; }
+function isDirty() { return sharedJSON(state.scenarios, state.calendar) !== publishedJSON; }
+
+// Replace the shared plan (draft restore, discard). Sessions are rebuilt against its calendar.
+function applyShared(scenarios, cal) {
+  state.scenarios = normalizeScenarios(structuredClone(scenarios));
+  state.calendar = normalizeCalendar(structuredClone(cal));
+  setCalendar(state.calendar);
+  regenerateSessions(state.scenarios);
+  if (!state.scenarios[state.currentScenario]) state.currentScenario = 'Current state';
+}
+
+// Call after any change to holidays or closures: every cohort's dates depend on them.
+function calendarChanged() {
+  state.calendar = normalizeCalendar(state.calendar);
+  setCalendar(state.calendar);
+  regenerateSessions(state.scenarios);
+  commit();
+  render();
+}
+
+function loadView() {
+  const v = storageGet(local(), VIEW_KEY);
+  if (v && v.currentScenario && state.scenarios[v.currentScenario]) state.currentScenario = v.currentScenario;
+  // Open on this week every time; the week you were looking at only matters within a visit.
+  state.currentWeek = Math.max(0, Math.min(getTimelineHorizon(), todayWeekIdx()));
+  const s = storageGet(session(), VIEW_KEY);
+  if (s && Number.isInteger(s.currentWeek)) state.currentWeek = s.currentWeek;
+  if (v && v.cohortCollapsed) setPanelCollapsed('cohort', true);
+  setPanelCollapsed('holiday', !(v && v.holidayOpen));
+}
+
+function saveView() {
+  storageSet(local(), VIEW_KEY, {
+    currentScenario: state.currentScenario,
+    cohortCollapsed: $('cohortPanel').classList.contains('collapsed'),
+    holidayOpen: !$('holidayPanel').classList.contains('collapsed'),
+  });
+  storageSet(session(), VIEW_KEY, { currentWeek: state.currentWeek });
+}
+
+// Call after any change to the shared plan.
+function commit() {
+  if (isDirty()) {
+    storageSet(local(), DRAFT_KEY, { savedAt: new Date().toISOString(), scenarios: state.scenarios, calendar: state.calendar });
+  } else {
+    storageRemove(local(), DRAFT_KEY);
+  }
+  draftOffer = null;
+  renderStatus();
+}
+
+function currentScn() {
+  if (!state.scenarios[state.currentScenario]) state.currentScenario = 'Current state';
+  return state.scenarios[state.currentScenario];
+}
+
+// Computes the timeline horizon — at least WEEKS_BASE, extended to cover all cohorts + buffer
+function getTimelineHorizon() {
+  const scn = currentScn();
+  let max = WEEKS_BASE;
+  if (scn) {
+    scn.cohorts.forEach(c => {
+      const last = c.sessions[c.sessions.length - 1];
+      if (!last) return;
+      const w = weekIndexFromDate(parseDate(last.dateStr));
+      if (w + 2 > max) max = w + 2; // cohort end + admin week + 1
+    });
+    scn.ongoing.forEach(o => {
+      if (!o.endDate) return;
+      const w = weekIndexFromDate(parseDate(o.endDate));
+      if (w + 1 > max) max = w + 1;
+    });
+  }
+  return max;
+}
+
+function setWeek(w) {
+  state.currentWeek = Math.max(0, Math.min(getTimelineHorizon(), w));
+  saveView();
+  render();
+}
+
+// ============================================================================
+// HOSTING: publish, read-only view, drafts
+// ============================================================================
+
+function buildPageHtml(data) {
+  const headStyle = document.head && document.head.querySelector('style');
+  const reset = headStyle ? headStyle.textContent :
+    ':root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif;background:#faf9f7}img{max-width:100%}[hidden]{display:none!important}';
+  const fontLinks = Array.from(document.querySelectorAll('link[href*="fonts.g"]')).map(l => l.outerHTML).join('\n');
+  const json = JSON.stringify(data).replace(/</g, '\\u003c');
+  const close = '</' + 'script>';
+  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + reset + '</style></head><body>' +
+    '<title>Workload Planner</title>\n' +
+    fontLinks + '\n' +
+    '<style id="plannerStyle">' + $('plannerStyle').textContent + '</style>\n\n' +
+    '<div id="app"></div>\n\n' +
+    '<template id="appTemplate">' + $('appTemplate').innerHTML + '</template>\n\n' +
+    '<script type="application/json" id="plannerData">' + json + close + '\n\n' +
+    '<script id="plannerScript">' + $('plannerScript').textContent + close + '\n' +
+    '</body></html>';
+}
+
+async function publishChanges() {
+  if (!artifactApi || publishing) return;
+  publishing = true;
+  renderStatus();
+  const data = { scheduleVersion: SCHEDULE_VERSION, updatedAt: new Date().toISOString(), calendar: state.calendar, scenarios: state.scenarios };
+  // Keep the draft until the reload shows it landed; a matching draft is dropped on load.
+  storageSet(local(), DRAFT_KEY, { savedAt: new Date().toISOString(), scenarios: state.scenarios, calendar: state.calendar });
+  saveView();
+  try {
+    await artifactApi.publish(buildPageHtml(data));
+    toast('Published. Loading the new version…');
+  } catch (err) {
+    const code = err && err.code;
+    if (code === 'conflict') {
+      toast('Someone published a newer version while you were editing. Loading it now. Your changes are kept and you can restore them.', 7000);
+    } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' || code === 'consent_required') {
+      mode = 'view';
+      toast('You can view this planner but not publish changes to it.', 6000);
+      render();
+    } else if (code === 'rate_limited') {
+      toast('Publishing too often. Wait a minute, then publish again.', 6000);
+    } else if (code === 'too_large') {
+      toast('The plan is too large to publish. Delete unused scenarios and try again.', 7000);
+    } else {
+      toast('Could not publish (' + (code || 'unknown error') + '). Your changes are still here; try again.', 7000);
+    }
+  } finally {
+    publishing = false;
+    renderStatus();
+  }
+}
+
+function restoreDraft() {
+  if (!draftOffer) return;
+  applyShared(draftOffer.scenarios, draftOffer.calendar || published.calendar);
+  draftOffer = null;
+  commit();
+  render();
+}
+
+async function discardChanges() {
+  if (!(await askConfirm('Discard unpublished changes?', 'The planner goes back to the last published version.', 'Discard', true))) return;
+  applyShared(published.scenarios, published.calendar);
+  draftOffer = null;
+  storageRemove(local(), DRAFT_KEY);
+  render();
+}
+
+function dismissDraft() {
+  draftOffer = null;
+  storageRemove(local(), DRAFT_KEY);
+  renderStatus();
+}
+
+async function initHosting() {
+  const draft = storageGet(local(), DRAFT_KEY);
+  const draftDiffers = draft && draft.scenarios &&
+    sharedJSON(normalizeScenarios(draft.scenarios), normalizeCalendar(draft.calendar || published.calendar)) !== publishedJSON;
+  if (draft && !draftDiffers) storageRemove(local(), DRAFT_KEY);
+
+  if (!window.claude || typeof window.claude.use !== 'function') {
+    // Opened as a plain file: edit freely, changes stay in this browser.
+    mode = 'local';
+    if (draftDiffers) applyShared(draft.scenarios, draft.calendar || published.calendar);
+    render();
+    return;
+  }
+
+  mode = 'pending';
+  render();
+  try {
+    const [art, usr, dl] = await Promise.all([
+      window.claude.use('artifact'),
+      window.claude.use('user'),
+      window.claude.use('downloads'),
+    ]);
+    artifactApi = art;
+    downloadsApi = dl;
+    const canEdit = art && usr ? await usr.canEdit() : false;
+    mode = canEdit ? 'edit' : 'view';
+  } catch (_) {
+    mode = 'view';
+  }
+  if (mode === 'edit' && draftDiffers) draftOffer = draft;
+  render();
+}
+
+function renderStatus() {
+  const bar = $('statusBar');
+  const text = $('statusText');
+  const actions = $('statusActions');
+  const stamp = formatStamp(published.updatedAt);
+  $('appRoot').classList.toggle('readonly', !isEditable());
+  actions.innerHTML = '';
+
+  const addBtn = (label, onClick, kind) => {
+    const b = document.createElement('button');
+    b.className = 'small' + (kind ? ' ' + kind : '');
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    actions.appendChild(b);
+    return b;
+  };
+
+  if (mode === 'pending' || mode === 'view') {
+    bar.dataset.state = 'view';
+    text.textContent = (mode === 'pending' ? 'Loading…' : 'View only') + (stamp ? ' · Last updated ' + stamp : '');
+    return;
+  }
+
+  if (mode === 'local') {
+    const dirty = isDirty();
+    bar.dataset.state = dirty ? 'dirty' : 'published';
+    text.textContent = 'Local copy · changes are saved in this browser only';
+    return;
+  }
+
+  // Editor on the hosted page
+  if (draftOffer) {
+    bar.dataset.state = 'dirty';
+    text.textContent = 'You have unpublished changes from ' + (formatStamp(draftOffer.savedAt) || 'an earlier visit') + '.';
+    addBtn('Discard them', dismissDraft);
+    addBtn('Restore', restoreDraft, 'primary');
+    return;
+  }
+
+  if (publishing) {
+    bar.dataset.state = 'dirty';
+    text.textContent = 'Publishing…';
+    return;
+  }
+
+  if (isDirty()) {
+    bar.dataset.state = 'dirty';
+    text.textContent = 'Unpublished changes · the team still sees the version from ' + (stamp || 'the last publish');
+    addBtn('Discard', discardChanges);
+    addBtn('Publish for team', publishChanges, 'primary');
+  } else {
+    bar.dataset.state = 'published';
+    text.textContent = 'Published' + (stamp ? ' · Last updated ' + stamp : '') + ' · the team sees this version';
+  }
+}
+
+window.addEventListener('beforeunload', e => {
+  if (mode === 'edit' && isDirty() && !publishing) { e.preventDefault(); e.returnValue = ''; }
+});
+
+// ============================================================================
+// DERIVING WEEK ACTIVITIES
+// ============================================================================
+
+function deriveWeekActivities(weekIdx) {
+  const scn = currentScn();
+  if (!scn) return [];
+  const monday = weekStartDate(weekIdx);
+  const weekDates = {};
+  DAYS.forEach((d, i) => { weekDates[d] = formatDateISO(addDays(monday, i)); });
+
+  const activities = [];
+
+  scn.cohorts.forEach(cohort => {
+    cohort.sessions.forEach(s => {
+      if (s.dateStr === weekDates[s.day]) {
+        const mod = MODULES.find(m => m.id === s.moduleId);
+        const facilitator = (cohort.facilitators && cohort.facilitators[s.day]) || cohort.facilitator || 'iain';
+        activities.push({
+          level: mod ? mod.level : null,
+          person: facilitator,
+          day: s.day,
+          session: s.session,
+          type: s.isHoliday ? 'holiday' : 'training',
+          cohort: `Cohort ${cohort.number}`,
+          cohortId: cohort.id,
+          moduleId: s.moduleId,
+          moduleName: mod ? mod.short : '',
+          isHoliday: s.isHoliday,
+          holidayName: s.holidayName,
+          isMakeup: !!s.isMakeup,
+          makeupFor: s.makeupFor || null,
+          source: 'cohort',
+        });
+      }
+    });
+  });
+
+  scn.ongoing.forEach(ong => {
+    const startWeekIdx = weekIndexFromDate(parseDate(ong.startDate));
+    let endWeekIdx = Infinity;
+    if (ong.endDate) endWeekIdx = weekIndexFromDate(parseDate(ong.endDate));
+    if (weekIdx >= startWeekIdx && weekIdx <= endWeekIdx) {
+      ong.slots.forEach(slot => {
+        const holiday = isHoliday(weekDates[slot.day]);
+        activities.push({
+          person: (ong.facilitators && ong.facilitators[slot.day]) || ong.facilitator || 'iain',
+          level: ong.type === 'l3' ? 3 : null,
+          day: slot.day,
+          session: slot.session,
+          type: ong.type,
+          cohort: ong.name,
+          ongoingId: ong.id,
+          isHoliday: !!holiday,
+          holidayName: holiday ? holiday.name : null,
+          source: 'ongoing',
+        });
+      });
+    }
+  });
+
+  return activities;
+}
+
+function getWeekActivities(weekIdx) {
+  const scn = currentScn();
+  const override = scn && scn.overrides[weekIdx];
+  // A week with an override uses the override as its full set of activities
+  if (Array.isArray(override)) return override;
+  return deriveWeekActivities(weekIdx);
+}
+
+function hasOverride(weekIdx) {
+  const scn = currentScn();
+  return !!(scn && scn.overrides[weekIdx]);
+}
+
+function materializeOverride(weekIdx) {
+  const scn = currentScn();
+  if (!scn.overrides[weekIdx]) scn.overrides[weekIdx] = structuredClone(deriveWeekActivities(weekIdx));
+  return scn.overrides[weekIdx];
+}
+
+function getActivitiesAt(weekIdx, person, day, session) {
+  return getWeekActivities(weekIdx).filter(a => a.person === person && a.day === day && a.session === session);
+}
+
+function addActivity(weekIdx, activity) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts.push(activity);
+  currentScn().overrides[weekIdx] = acts;
+  commit();
+}
+
+function removeActivity(weekIdx, idx) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts.splice(idx, 1);
+  currentScn().overrides[weekIdx] = acts;
+  commit();
+}
+
+function updateActivity(weekIdx, idx, newData) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts[idx] = Object.assign(acts[idx], newData);
+  currentScn().overrides[weekIdx] = acts;
+  commit();
+}
+
+// ============================================================================
+// TIMESLOT OCCUPANCY
+// ============================================================================
+// Level 1–2 cohorts and Level 3 groups each hold a training timeslot. Two holders
+// clash when they share a day and session over overlapping dates.
+
+const FAR_FUTURE = new Date(9999, 0, 1);
+
+function slotHolders(scn) {
+  const out = [];
+  scn.cohorts.forEach(c => {
+    const ts = TIMESLOTS.find(t => t.id === c.timeslotId);
+    const end = cohortEndDate(c);
+    if (ts && end) out.push({ kind: 'cohort', id: c.id, label: `Cohort ${c.number}`, ts, start: parseDate(c.startDate), end });
+  });
+  scn.ongoing.filter(o => o.type === 'l3').forEach(o => {
+    const ts = TIMESLOTS.find(t => t.id === o.timeslotId);
+    if (ts) out.push({ kind: 'l3', id: o.id, label: o.name, ts, start: parseDate(o.startDate), end: o.endDate ? parseDate(o.endDate) : null });
+  });
+  return out;
+}
+
+// Shared days when a and b clash, otherwise null
+function clashDays(a, b) {
+  if (a.ts.session !== b.ts.session) return null;
+  const shared = a.ts.days.filter(d => b.ts.days.includes(d));
+  if (shared.length === 0) return null;
+  if ((a.end || FAR_FUTURE) < b.start || (b.end || FAR_FUTURE) < a.start) return null;
+  return shared;
+}
+
+function slotBlockers(timeslotId, start, end, excludeId) {
+  const ts = TIMESLOTS.find(t => t.id === timeslotId);
+  if (!ts) return [];
+  const candidate = { ts, start, end };
+  return slotHolders(currentScn())
+    .filter(h => h.id !== excludeId)
+    .map(h => ({ ...h, sharedDays: clashDays(candidate, h) }))
+    .filter(h => h.sharedDays);
+}
+
+function clashesById(scn) {
+  const holders = slotHolders(scn);
+  const map = {};
+  for (let i = 0; i < holders.length; i++) {
+    for (let j = i + 1; j < holders.length; j++) {
+      const shared = clashDays(holders[i], holders[j]);
+      if (!shared) continue;
+      (map[holders[i].id] = map[holders[i].id] || []).push({ label: holders[j].label, sharedDays: shared });
+      (map[holders[j].id] = map[holders[j].id] || []).push({ label: holders[i].label, sharedDays: shared });
+    }
+  }
+  return map;
+}
+
+// First and last session date of each level in a cohort
+function cohortLevelSpans(c) {
+  const spans = {};
+  c.sessions.forEach(s => {
+    const lvl = moduleLevel(s.moduleId);
+    if (!lvl) return;
+    const d = parseDate(s.dateStr);
+    if (!spans[lvl]) spans[lvl] = { start: d, end: d };
+    if (d < spans[lvl].start) spans[lvl].start = d;
+    if (d > spans[lvl].end) spans[lvl].end = d;
+  });
+  return spans;
+}
+
+function cohortLevelInWeek(c, weekIdx) {
+  const spans = cohortLevelSpans(c);
+  if (spans[2] && weekIdx >= weekIndexFromDate(spans[2].start)) return 2;
+  return 1;
+}
+
+// ============================================================================
+// HOUR CALCULATIONS
+// ============================================================================
+
+function getDeliveryHours(weekIdx, person) {
+  return getSessionCount(weekIdx, person) * 3; // 3 hours per session
+}
+
+function getSessionCount(weekIdx, person) {
+  return getWeekActivities(weekIdx).filter(a => a.person === person && !a.isHoliday).length;
+}
+
+function getDeliveryHoursByType(weekIdx, person, type) {
+  return getWeekActivities(weekIdx).filter(a => a.person === person && a.type === type && !a.isHoliday).length * 3;
+}
+
+function cohortEndDate(c) {
+  const last = c.sessions[c.sessions.length - 1];
+  return last ? parseDate(last.dateStr) : null;
+}
+
+function getActiveCohortsForWeek(weekIdx) {
+  return currentScn().cohorts.filter(c => {
+    const end = cohortEndDate(c);
+    if (!end) return false;
+    return weekIdx >= weekIndexFromDate(parseDate(c.startDate)) && weekIdx <= weekIndexFromDate(end);
+  });
+}
+
+function getActiveOngoingForWeek(weekIdx) {
+  return currentScn().ongoing.filter(ong => {
+    const startWeekIdx = weekIndexFromDate(parseDate(ong.startDate));
+    const endWeekIdx = ong.endDate ? weekIndexFromDate(parseDate(ong.endDate)) : Infinity;
+    return weekIdx >= startWeekIdx && weekIdx <= endWeekIdx;
+  });
+}
+
+// ============================================================================
+// RENDER
+// ============================================================================
+
+function render() {
+  renderStatus();
+  renderScenarios();
+  renderCohortList();
+  renderModuleLegend();
+  renderHolidayClashes();
+  renderCalendar();
+  renderTimeline();
+  renderWeekDisplay();
+  renderGrid();
+  renderTotals();
+  renderSummary();
+  renderTimelineMeta();
+  renderFooter();
+}
+
+function renderFooter() {
+  const stamp = formatStamp(published.updatedAt);
+  $('footerText').textContent = 'SA public holidays and Christmas closures included' + (stamp ? ' · Plan last published ' + stamp : '');
+}
+
+function renderScenarios() {
+  const sel = $('scenarioSelect');
+  const label = sel.previousElementSibling;
+  const names = Object.keys(state.scenarios);
+
+  sel.innerHTML = '';
+  names.forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    if (name === state.currentScenario) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  const single = names.length <= 1;
+  sel.hidden = single;
+  if (label) label.hidden = single;
+  $('deleteBtn').hidden = single;
+}
+
+function renderModuleLegend() {
+  const el = $('moduleLegend');
+  el.innerHTML = '';
+  LEVELS.forEach(l => {
+    const card = document.createElement('div');
+    card.className = 'level-card level-' + l.id;
+    card.innerHTML = `
+      <div class="level-head"><span class="level-name">${esc(l.name)}</span><span class="level-length">${esc(l.length)}</span></div>
+      <div class="level-modules">${esc(l.detail)}</div>`;
+    el.appendChild(card);
+  });
+}
+
+function shortDate(d) { return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }); }
+function longDate(d) { return d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+function facilitatorSummary(item, ts) {
+  if (!ts) return personName(item.facilitator);
+  const facs = ts.days.map(day => ({
+    day,
+    name: personName((item.facilitators && item.facilitators[day]) || item.facilitator || 'iain'),
+  }));
+  const unique = [...new Set(facs.map(f => f.name))];
+  return unique.length === 1 ? unique[0] : facs.map(f => `${f.day}: ${f.name}`).join(' · ');
+}
+
+function clashHtml(clashes) {
+  if (!clashes || clashes.length === 0) return '';
+  const text = clashes.map(c => `${esc(c.label)} (${c.sharedDays.join('/')})`).join(', ');
+  return `<div class="clash-text">⚠ Clashes with ${text}</div>`;
+}
+
+function renderCohortList() {
+  const el = $('cohortList');
+  const scn = currentScn();
+  el.innerHTML = '';
+
+  const l3Groups = scn.ongoing.filter(o => o.type === 'l3');
+  const otherOngoing = scn.ongoing.filter(o => o.type !== 'l3');
+  const totalCohorts = scn.cohorts.length;
+  $('cohortPanelMeta').textContent =
+    `${totalCohorts} Level 1–2 cohort${totalCohorts !== 1 ? 's' : ''} · ` +
+    `${l3Groups.length} Level 3 group${l3Groups.length !== 1 ? 's' : ''} · ` +
+    `${otherOngoing.length} other activit${otherOngoing.length !== 1 ? 'ies' : 'y'}`;
+
+  if (totalCohorts === 0 && scn.ongoing.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'no-cohorts';
+    empty.innerHTML = isEditable()
+      ? '<strong>Nothing planned yet.</strong><br>Add a Level 1–2 cohort or a Level 3 group below, or use <strong>Import</strong> to bring in a scenario you exported from the older planner file.'
+      : '<strong>Nothing has been planned in this scenario yet.</strong><br>Check back once the plan has been published.';
+    el.appendChild(empty);
+    return;
+  }
+
+  const clashes = clashesById(scn);
+
+  const sortedCohorts = [...scn.cohorts].sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+  sortedCohorts.forEach(cohort => {
+    const ts = TIMESLOTS.find(t => t.id === cohort.timeslotId);
+    const startDate = parseDate(cohort.startDate);
+    const endDate = cohortEndDate(cohort);
+    const spans = cohortLevelSpans(cohort);
+    const uniqueHolidayDays = new Set(cohort.sessions.filter(s => s.isHoliday).map(s => s.dateStr)).size;
+    const myClashes = clashes[cohort.id];
+
+    let warnings = clashHtml(myClashes);
+    if (uniqueHolidayDays > 0) {
+      warnings += `<div class="holiday-text">${uniqueHolidayDays} day${uniqueHolidayDays !== 1 ? 's' : ''} affected by holidays</div>`;
+    }
+    const levels = [1, 2].filter(l => spans[l])
+      .map(l => `<span class="l${l}">L${l}</span> ${shortDate(spans[l].start)} → ${shortDate(spans[l].end)}`)
+      .join(' · ');
+
+    const row = document.createElement('div');
+    row.className = 'cohort-row training' + (myClashes ? ' clash' : '');
+    row.innerHTML = `
+      <div class="cohort-name">Cohort ${esc(cohort.number)}</div>
+      <div class="cohort-detail-wrap">
+        <div class="cohort-detail">${ts ? ts.short : ''} · ${facilitatorSummary(cohort, ts)}</div>
+        <div class="cohort-stat">
+          <span class="value">${shortDate(startDate)}</span> → <span class="value">${endDate ? longDate(endDate) : '?'}</span>
+        </div>
+        <div class="cohort-levels">${levels}</div>
+      </div>
+      <div class="cohort-stat">Participants <span class="value">${esc(cohort.participants)}</span></div>
+      <div class="cohort-warnings">${warnings}</div>
+      <div class="cohort-actions edit-only">
+        <button class="small" data-action="edit-cohort" data-id="${esc(cohort.id)}">Edit</button>
+        <button class="small warn" data-action="delete-cohort" data-id="${esc(cohort.id)}">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+
+  l3Groups.forEach(g => {
+    const ts = TIMESLOTS.find(t => t.id === g.timeslotId);
+    const endDate = g.endDate ? parseDate(g.endDate) : null;
+    const myClashes = clashes[g.id];
+    const row = document.createElement('div');
+    row.className = 'cohort-row l3' + (myClashes ? ' clash' : '');
+    row.innerHTML = `
+      <div class="cohort-name">${esc(g.name)}</div>
+      <div class="cohort-detail-wrap">
+        <div class="cohort-detail">${ts ? ts.short : '?'} · ${facilitatorSummary(g, ts)}</div>
+        <div class="cohort-stat">
+          <span class="value">${shortDate(parseDate(g.startDate))}</span> → <span class="value">${endDate ? longDate(endDate) : 'Ongoing'}</span>
+        </div>
+        <div class="cohort-levels">Rolling intake · up to 6 months per participant</div>
+      </div>
+      <div class="cohort-stat">Participants <span class="value">${esc(g.participants)}</span></div>
+      <div class="cohort-warnings">${clashHtml(myClashes)}</div>
+      <div class="cohort-actions edit-only">
+        <button class="small" data-action="edit-l3" data-id="${esc(g.id)}">Edit</button>
+        <button class="small warn" data-action="delete-ongoing" data-id="${esc(g.id)}">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+
+  otherOngoing.forEach(ong => {
+    const startDate = parseDate(ong.startDate);
+    const endDate = ong.endDate ? parseDate(ong.endDate) : null;
+    const slotDesc = ong.slots.map(s => `${s.day} ${s.session.toUpperCase()}`).join(', ');
+
+    const row = document.createElement('div');
+    row.className = 'cohort-row ' + esc(ong.type);
+    row.innerHTML = `
+      <div class="cohort-name">${esc(ong.name)}</div>
+      <div class="cohort-detail-wrap">
+        <div class="cohort-detail">${esc(slotDesc)} · ${personName(ong.facilitator)}</div>
+        <div class="cohort-stat">
+          <span class="value">${shortDate(startDate)}</span> → <span class="value">${endDate ? longDate(endDate) : 'Ongoing'}</span>
+        </div>
+      </div>
+      <div class="cohort-stat">${esc(ACTIVITY_LABELS[ong.type] || ong.type)}</div>
+      <div class="cohort-warnings"></div>
+      <div class="cohort-actions edit-only">
+        <button class="small" data-action="edit-ongoing" data-id="${esc(ong.id)}">Edit</button>
+        <button class="small warn" data-action="delete-ongoing" data-id="${esc(ong.id)}">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+
+  el.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      switch (btn.dataset.action) {
+        case 'delete-cohort': deleteCohort(id); break;
+        case 'edit-cohort': openCohortForm(id); break;
+        case 'edit-l3': openL3Form(id); break;
+        case 'delete-ongoing': deleteOngoing(id); break;
+        case 'edit-ongoing': openOngoingForm(id); break;
+      }
+    });
+  });
+}
+
+function renderHolidayClashes() {
+  const el = $('holidayClashes');
+  el.innerHTML = '';
+
+  const clashes = [];
+  currentScn().cohorts.forEach(cohort => {
+    cohort.sessions.filter(s => s.isHoliday).forEach(s => {
+      clashes.push({ cohortName: `Cohort ${cohort.number}`, ...s });
+    });
+  });
+  if (clashes.length === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'holiday-clashes';
+  wrap.innerHTML = `<h4>⚠ Holiday clashes · a makeup session is added at the end of each affected cohort</h4>`;
+
+  clashes.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'holiday-clash-item';
+    item.innerHTML = `
+      <span class="date">${shortDate(parseDate(c.dateStr))}</span>
+      <span style="font-weight: 600;">${esc(c.cohortName)}</span>
+      <span class="module">L${moduleLevel(c.moduleId) || '?'} · ${esc(c.moduleName)}</span>
+      <span class="reason">${esc(c.holidayName)}</span>
+    `;
+    wrap.appendChild(item);
+  });
+
+  el.appendChild(wrap);
+}
+
+function renderCalendar() {
+  const today = formatDateISO(new Date());
+  const editable = isEditable();
+  const cal = state.calendar;
+
+  const upcomingHolidays = cal.holidays.filter(h => h.date >= today).length;
+  const upcomingClosures = cal.closures.filter(c => c.end >= today).length;
+  $('holidayPanelMeta').textContent =
+    `${upcomingHolidays} upcoming public holiday${upcomingHolidays !== 1 ? 's' : ''} · ` +
+    `${upcomingClosures} upcoming closure${upcomingClosures !== 1 ? 's' : ''}`;
+  $('showPastHolidaysBtn').textContent = showPastHolidays ? 'Hide past dates' : 'Show past dates';
+
+  const field = (type, value, label, onChange) => {
+    const input = document.createElement('input');
+    input.type = type;
+    input.value = value;
+    input.setAttribute('aria-label', label);
+    input.addEventListener('change', () => onChange(input.value.trim(), input));
+    return input;
+  };
+  const removeBtn = (label, onClick) => {
+    const b = document.createElement('button');
+    b.className = 'small cal-remove';
+    b.textContent = '×';
+    b.setAttribute('aria-label', label);
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  const textRow = (dateText, name, past) => {
+    const row = document.createElement('div');
+    row.className = 'cal-text' + (past ? ' past' : '');
+    row.innerHTML = `<span class="d">${esc(dateText)}</span><span>${esc(name)}</span>`;
+    return row;
+  };
+  const fmt = iso => parseDate(iso).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+  // Public holidays
+  const hl = $('holidayList');
+  hl.innerHTML = '';
+  cal.holidays.forEach((h, i) => {
+    const past = h.date < today;
+    if (past && !showPastHolidays) return;
+    if (!editable) { hl.appendChild(textRow(fmt(h.date), h.name, past)); return; }
+    const row = document.createElement('div');
+    row.className = 'cal-row' + (past ? ' past' : '');
+    row.append(
+      field('date', h.date, 'Holiday date', v => { if (ISO_DATE.test(v)) { cal.holidays[i].date = v; calendarChanged(); } }),
+      field('text', h.name, 'Holiday name', v => { cal.holidays[i].name = v || 'Public holiday'; calendarChanged(); }),
+      removeBtn('Remove ' + h.name, () => { cal.holidays.splice(i, 1); calendarChanged(); }),
+    );
+    hl.appendChild(row);
+  });
+  if (editable) {
+    const row = document.createElement('div');
+    row.className = 'cal-row add-row';
+    const date = field('date', '', 'New holiday date', () => {});
+    const name = field('text', '', 'New holiday name', () => {});
+    name.placeholder = 'Holiday name';
+    const add = document.createElement('button');
+    add.className = 'small';
+    add.textContent = 'Add';
+    add.addEventListener('click', () => {
+      if (!ISO_DATE.test(date.value)) { toast('Pick a date for the holiday.'); return; }
+      cal.holidays.push({ date: date.value, name: name.value.trim() || 'Public holiday' });
+      calendarChanged();
+    });
+    row.append(date, name, add);
+    hl.appendChild(row);
+  } else if (!hl.children.length) {
+    hl.appendChild(textRow('', 'None listed', false));
+  }
+
+  // Closures
+  const cl = $('closureList');
+  cl.innerHTML = '';
+  cal.closures.forEach((c, i) => {
+    const past = c.end < today;
+    if (past && !showPastHolidays) return;
+    if (!editable) { cl.appendChild(textRow(`${shortDate(parseDate(c.start))} – ${longDate(parseDate(c.end))}`, c.name, past)); return; }
+    const row = document.createElement('div');
+    row.className = 'cal-row closure' + (past ? ' past' : '');
+    const setRange = (key, v, input) => {
+      if (!ISO_DATE.test(v)) return;
+      const next = { ...c, [key]: v };
+      if (next.end < next.start) { toast('A closure must end on or after the day it starts.'); input.value = c[key]; return; }
+      cal.closures[i] = next;
+      calendarChanged();
+    };
+    row.append(
+      field('date', c.start, 'Closure first day', (v, inp) => setRange('start', v, inp)),
+      field('date', c.end, 'Closure last day', (v, inp) => setRange('end', v, inp)),
+      field('text', c.name, 'Closure name', v => { cal.closures[i].name = v || 'Closure'; calendarChanged(); }),
+      removeBtn('Remove ' + c.name, () => { cal.closures.splice(i, 1); calendarChanged(); }),
+    );
+    cl.appendChild(row);
+  });
+  if (editable) {
+    const row = document.createElement('div');
+    row.className = 'cal-row closure add-row';
+    const start = field('date', '', 'New closure first day', () => {});
+    const end = field('date', '', 'New closure last day', () => {});
+    const name = field('text', '', 'New closure name', () => {});
+    name.placeholder = 'e.g. Christmas closure';
+    const add = document.createElement('button');
+    add.className = 'small';
+    add.textContent = 'Add';
+    add.addEventListener('click', () => {
+      if (!ISO_DATE.test(start.value) || !ISO_DATE.test(end.value)) { toast('Pick the first and last day of the closure.'); return; }
+      if (end.value < start.value) { toast('A closure must end on or after the day it starts.'); return; }
+      cal.closures.push({ start: start.value, end: end.value, name: name.value.trim() || 'Closure' });
+      calendarChanged();
+    });
+    row.append(start, end, name, add);
+    cl.appendChild(row);
+  } else if (!cl.children.length) {
+    cl.appendChild(textRow('', 'None listed', false));
+  }
+}
+
+function renderTimeline() {
+  const inner = $('timelineInner');
+  inner.innerHTML = '';
+  const WEEKS_TOTAL = getTimelineHorizon();
+  const totalWeeks = WEEKS_TOTAL + 1;
+  const weekWidth = 100 / totalWeeks;
+  inner.style.minWidth = (totalWeeks * 22) + 'px';
+
+  const goTo = (el, week) => el.addEventListener('click', e => { e.stopPropagation(); setWeek(week); });
+
+  // Month markers
+  const monthsSeen = new Set();
+  for (let i = 0; i < totalWeeks; i++) {
+    const d = weekStartDate(i);
+    const monthKey = d.getFullYear() + '-' + d.getMonth();
+    if (!monthsSeen.has(monthKey)) {
+      monthsSeen.add(monthKey);
+      const m = document.createElement('div');
+      m.className = 'timeline-month';
+      m.style.left = (i * weekWidth) + '%';
+      m.style.width = weekWidth + '%';
+      m.textContent = d.toLocaleDateString('en-AU', { month: 'short' }) + (d.getMonth() === 0 ? ' ' + d.getFullYear() : '');
+      inner.appendChild(m);
+    }
+  }
+
+  const scn = currentScn();
+  let rowIdx = 0;
+
+  const sortedCohorts = [...scn.cohorts].sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+  sortedCohorts.forEach(cohort => {
+    const startWeek = weekIndexFromDate(parseDate(cohort.startDate));
+    const end = cohortEndDate(cohort);
+    if (!end) return;
+    const endWeek = weekIndexFromDate(end);
+    if (endWeek < 0 || startWeek > WEEKS_TOTAL) return;
+
+    const top = (24 + rowIdx * 22) + 'px';
+
+    // One segment per level: Level 1 then Level 2
+    const spans = cohortLevelSpans(cohort);
+    [1, 2].forEach(level => {
+      const span = spans[level];
+      if (!span) return;
+      const segStart = level === 1 ? startWeek : weekIndexFromDate(span.start);
+      const segEnd = level === 2 ? endWeek : Math.min(weekIndexFromDate(span.end), spans[2] ? weekIndexFromDate(spans[2].start) - 1 : endWeek);
+      const visibleStart = Math.max(0, segStart);
+      const visibleEnd = Math.min(WEEKS_TOTAL, segEnd);
+      if (visibleEnd < visibleStart) return;
+      const bar = document.createElement('div');
+      bar.className = 'cohort-bar level-' + level;
+      bar.style.left = (visibleStart * weekWidth) + '%';
+      bar.style.width = ((visibleEnd - visibleStart + 1) * weekWidth) + '%';
+      bar.style.top = top;
+      bar.textContent = level === 1 ? `C${cohort.number} · L1` : 'L2';
+      bar.title = `Cohort ${cohort.number} · Level ${level} · ${shortDate(span.start)} → ${longDate(span.end)}`;
+      goTo(bar, visibleStart);
+      inner.appendChild(bar);
+    });
+
+    // Admin week bar — one week immediately after the cohort ends
+    const adminWeek = endWeek + 1;
+    if (adminWeek <= WEEKS_TOTAL) {
+      const adminBar = document.createElement('div');
+      adminBar.className = 'cohort-bar admin-week';
+      adminBar.style.left = (adminWeek * weekWidth) + '%';
+      adminBar.style.width = weekWidth + '%';
+      adminBar.style.top = top;
+      adminBar.textContent = 'Admin';
+      adminBar.title = `Admin week after Cohort ${cohort.number} · ${formatWeekLabel(adminWeek)}`;
+      goTo(adminBar, adminWeek);
+      inner.appendChild(adminBar);
+    }
+    rowIdx++;
+  });
+
+  const ongoingSorted = [...scn.ongoing].sort((a, b) => (a.type === 'l3' ? 0 : 1) - (b.type === 'l3' ? 0 : 1));
+  ongoingSorted.forEach(ong => {
+    const startWeek = weekIndexFromDate(parseDate(ong.startDate));
+    const endWeek = ong.endDate ? weekIndexFromDate(parseDate(ong.endDate)) : WEEKS_TOTAL;
+    if (endWeek < 0 || startWeek > WEEKS_TOTAL) return;
+
+    const visibleStart = Math.max(0, startWeek);
+    const visibleEnd = Math.min(WEEKS_TOTAL, endWeek);
+
+    const bar = document.createElement('div');
+    bar.className = 'cohort-bar ' + ong.type;
+    bar.style.left = (visibleStart * weekWidth) + '%';
+    bar.style.width = ((visibleEnd - visibleStart + 1) * weekWidth) + '%';
+    bar.style.top = (24 + rowIdx * 22) + 'px';
+    const ts = ong.type === 'l3' ? TIMESLOTS.find(t => t.id === ong.timeslotId) : null;
+    bar.textContent = ts ? `${ong.name} · ${ts.short}` : ong.name;
+    bar.title = `${ong.name} · ${formatWeekLabel(startWeek)} → ${ong.endDate ? formatWeekLabel(endWeek) : 'ongoing'}`;
+    goTo(bar, visibleStart);
+    inner.appendChild(bar);
+    rowIdx++;
+  });
+
+  // Today marker
+  const tw = todayWeekIdx();
+  if (tw >= 0 && tw <= WEEKS_TOTAL) {
+    const dayOffset = Math.min(4, (new Date().getDay() + 6) % 7) / 5;
+    const today = document.createElement('div');
+    today.className = 'timeline-today';
+    today.style.left = ((tw + dayOffset) * weekWidth) + '%';
+    today.innerHTML = '<span>Today</span>';
+    inner.appendChild(today);
+  }
+
+  // Selected week cursor
+  const cursor = document.createElement('div');
+  cursor.className = 'timeline-week-cursor';
+  cursor.style.left = (state.currentWeek * weekWidth + weekWidth / 2) + '%';
+  inner.appendChild(cursor);
+
+  $('timelineGrid').style.height = Math.max(200, 24 + rowIdx * 22 + 24) + 'px';
+
+  const slider = $('weekSlider');
+  slider.max = WEEKS_TOTAL;
+  slider.value = state.currentWeek;
+}
+
+function renderTimelineMeta() {
+  const WEEKS_TOTAL = getTimelineHorizon();
+  const startStr = TIMELINE_START.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+  const endStr = weekStartDate(WEEKS_TOTAL).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+  $('timelineMeta').textContent = `${startStr} – ${endStr} · Click a week to view it`;
+}
+
+function renderWeekDisplay() {
+  $('weekDisplay').textContent = formatWeekLabel(state.currentWeek);
+  $('prevWeekBtn').disabled = state.currentWeek <= 0;
+  $('nextWeekBtn').disabled = state.currentWeek >= getTimelineHorizon();
+
+  // Admin weeks: cohorts whose last session falls in the week before this one
+  const adminFor = [];
+  currentScn().cohorts.forEach(c => {
+    const end = cohortEndDate(c);
+    if (end && weekIndexFromDate(end) + 1 === state.currentWeek) adminFor.push(c.number);
+  });
+
+  let badges = hasOverride(state.currentWeek)
+    ? ' <span class="override-badge">edited</span>'
+    : ' <span class="derived-badge">auto from cohorts</span>';
+  if (adminFor.length > 0) {
+    const label = adminFor.length === 1 ? `admin week · Cohort ${adminFor[0]}` : `admin week · Cohorts ${adminFor.join(', ')}`;
+    badges += ` <span class="admin-badge">${esc(label)}</span>`;
+  }
+  if (state.currentWeek === todayWeekIdx()) badges += ' <span class="derived-badge">this week</span>';
+
+  $('scheduleTitle').innerHTML = 'Week of ' + formatWeekLabel(state.currentWeek) + badges;
+}
+
+function renderGrid() {
+  const grid = $('grid');
+  grid.innerHTML = '';
+  const editable = isEditable();
+  const todayStr = formatDateISO(new Date());
+
+  const monday = weekStartDate(state.currentWeek);
+  const dayDates = {};
+  DAYS.forEach((d, i) => { dayDates[d] = addDays(monday, i); });
+
+  const corner = document.createElement('div');
+  corner.className = 'grid-cell day-header';
+  grid.appendChild(corner);
+
+  DAYS.forEach(d => {
+    const date = dayDates[d];
+    const dateStr = formatDateISO(date);
+    const hol = isHoliday(dateStr);
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell day-header' + (hol ? ' holiday-header' : '') + (dateStr === todayStr ? ' today-header' : '');
+    cell.innerHTML = d + '<div class="day-date">' + date.getDate() + ' ' + date.toLocaleDateString('en-AU', { month: 'short' }) + '</div>' + (hol ? '<div class="day-date">' + esc(hol.name) + '</div>' : '');
+    grid.appendChild(cell);
+  });
+
+  const allActs = getWeekActivities(state.currentWeek);
+  const overridden = hasOverride(state.currentWeek);
+
+  PEOPLE.forEach(person => {
+    SESSIONS.forEach((session, sIdx) => {
+      if (sIdx === 0) {
+        const label = document.createElement('div');
+        label.className = 'grid-cell person-label ' + person;
+        label.style.gridRow = 'span 2';
+        label.textContent = personName(person);
+        grid.appendChild(label);
+      }
+
+      DAYS.forEach(day => {
+        const hol = isHoliday(formatDateISO(dayDates[day]));
+
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell lane-' + person;
+        if (hol) cell.classList.add('holiday-day');
+        if (person === 'iain' && session === 'pm') cell.classList.add('lane-divider');
+
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.dataset.person = person;
+        slot.dataset.day = day;
+        slot.dataset.session = session;
+
+        const label = document.createElement('span');
+        label.className = 'slot-label';
+        label.textContent = session.toUpperCase();
+        slot.appendChild(label);
+
+        const activities = allActs.filter(a => a.person === person && a.day === day && a.session === session);
+
+        if (activities.length === 0) {
+          slot.classList.add('empty');
+          if (editable) slot.addEventListener('click', () => openAddModal(person, day, session));
+        } else {
+          activities.forEach(act => {
+            const idx = allActs.indexOf(act);
+            const block = document.createElement('div');
+            block.className = 'activity-block ' + act.type;
+            if (act.isHoliday) block.classList.add('holiday');
+            if (act.isMakeup) block.classList.add('makeup');
+            const level = act.type === 'l3' ? 3 : (act.level || (act.moduleId ? moduleLevel(act.moduleId) : null));
+            if (level === 1 || level === 2) block.dataset.level = level;
+
+            const name = document.createElement('div');
+            name.className = 'activity-name';
+            name.textContent = act.cohort || ACTIVITY_LABELS[act.type] || act.type;
+            block.appendChild(name);
+
+            if (level) {
+              const m = document.createElement('div');
+              m.className = 'activity-module';
+              const tag = document.createElement('span');
+              tag.className = 'level-tag';
+              tag.textContent = 'L' + level;
+              m.append(tag, act.moduleName || (level === 3 ? 'Rolling intake' : ''));
+              block.appendChild(m);
+            } else if (act.cohort && ACTIVITY_LABELS[act.type] && act.cohort !== ACTIVITY_LABELS[act.type]) {
+              const m = document.createElement('div');
+              m.className = 'activity-module';
+              m.textContent = ACTIVITY_LABELS[act.type];
+              block.appendChild(m);
+            }
+
+            if (act.isHoliday) {
+              const hTag = document.createElement('div');
+              hTag.className = 'holiday-tag';
+              hTag.textContent = '⚠ ' + (act.holidayName || 'Holiday');
+              block.appendChild(hTag);
+            }
+
+            if (act.isMakeup) {
+              const mTag = document.createElement('div');
+              mTag.className = 'makeup-tag';
+              mTag.textContent = '↪ Makeup' + (act.makeupFor ? ` (for ${act.makeupFor.name})` : '');
+              block.appendChild(mTag);
+            }
+
+            if (editable && overridden) {
+              block.classList.add('editable');
+              const del = document.createElement('button');
+              del.className = 'activity-delete';
+              del.textContent = '×';
+              del.setAttribute('aria-label', 'Remove from this week');
+              del.addEventListener('click', e => {
+                e.stopPropagation();
+                removeActivity(state.currentWeek, idx);
+                render();
+              });
+              block.appendChild(del);
+              block.addEventListener('click', e => { e.stopPropagation(); openEditModal(idx); });
+            } else if (editable) {
+              block.title = 'Comes from a cohort or ongoing activity. Click an empty slot to start editing this week by hand.';
+            }
+
+            slot.appendChild(block);
+          });
+        }
+
+        if (editable) {
+          slot.addEventListener('dragover', e => { e.preventDefault(); slot.classList.add('drop-target'); });
+          slot.addEventListener('dragleave', () => slot.classList.remove('drop-target'));
+          slot.addEventListener('drop', e => {
+            e.preventDefault();
+            slot.classList.remove('drop-target');
+            const type = e.dataTransfer.getData('activity-type');
+            if (type) openAddModal(person, day, session, type);
+          });
+        }
+
+        // Two or more live sessions in one slot means someone is double-booked
+        if (activities.filter(a => !a.isHoliday).length > 1) slot.classList.add('overload');
+
+        cell.appendChild(slot);
+        grid.appendChild(cell);
+      });
+    });
+  });
+}
+
+function renderTotals() {
+  const iainHours = getDeliveryHours(state.currentWeek, 'iain');
+  const neilHours = getDeliveryHours(state.currentWeek, 'neil');
+  const iainSessions = getSessionCount(state.currentWeek, 'iain');
+  const neilSessions = getSessionCount(state.currentWeek, 'neil');
+
+  $('scheduleTotals').innerHTML = `
+    <div class="total"><span class="name">Iain</span><span class="value ${iainHours > IAIN_MAX_HOURS ? 'warn' : ''}">${iainHours}h · ${iainSessions} sessions</span></div>
+    <div class="total"><span class="name">Neil</span><span class="value ${neilHours > NEIL_MAX_HOURS ? 'warn' : ''}">${neilHours}h · ${neilSessions} sessions</span></div>
+  `;
+}
+
+function renderSummary() {
+  const w = state.currentWeek;
+  const iainHours = getDeliveryHours(w, 'iain');
+  const neilHours = getDeliveryHours(w, 'neil');
+  const iainTraining = getDeliveryHoursByType(w, 'iain', 'training');
+  const iainWF = getDeliveryHoursByType(w, 'iain', 'wf');
+  const iainAce = getDeliveryHoursByType(w, 'iain', 'ace');
+  const iainL3 = getDeliveryHoursByType(w, 'iain', 'l3');
+  const neilTraining = getDeliveryHoursByType(w, 'neil', 'training');
+  const neilL3 = getDeliveryHoursByType(w, 'neil', 'l3');
+
+  const activeCohorts = getActiveCohortsForWeek(w);
+  const activeOngoing = getActiveOngoingForWeek(w);
+
+  const neilWarn = neilHours > NEIL_MAX_HOURS;
+  const iainWarn = iainHours > IAIN_MAX_HOURS;
+
+  // Empty slots for Iain (admin / open time)
+  let iainAdmin = 0;
+  DAYS.forEach(d => SESSIONS.forEach(s => {
+    if (getActivitiesAt(w, 'iain', d, s).length === 0) iainAdmin++;
+  }));
+
+  const allActive = [
+    ...activeCohorts.map(c => `Cohort ${c.number}`),
+    ...activeOngoing.map(o => o.name),
+  ];
+
+  const byLevel = { 1: 0, 2: 0, 3: 0 };
+  activeCohorts.forEach(c => { byLevel[cohortLevelInWeek(c, w)] += Number(c.participants) || 0; });
+  activeOngoing.filter(o => o.type === 'l3').forEach(o => { byLevel[3] += Number(o.participants) || 0; });
+  const totalParticipants = byLevel[1] + byLevel[2] + byLevel[3];
+
+  $('summary').innerHTML = `
+    <div class="summary-block">
+      <h4>Iain · Week total</h4>
+      <div class="stat ${iainWarn ? 'warn' : ''}">${iainHours}h</div>
+      <div class="detail">
+        ${iainTraining > 0 ? `Level 1–2: ${iainTraining}h<br>` : ''}
+        ${iainL3 > 0 ? `Level 3: ${iainL3}h<br>` : ''}
+        ${iainWF > 0 ? `Work Foundations: ${iainWF}h<br>` : ''}
+        ${iainAce > 0 ? `ACE: ${iainAce}h<br>` : ''}
+        Admin / open: ${iainAdmin} session blocks
+        ${iainWarn ? `<br><span class="warn-text">Above ${IAIN_MAX_HOURS}h threshold</span>` : ''}
+      </div>
+    </div>
+    <div class="summary-block">
+      <h4>Neil · Week total</h4>
+      <div class="stat ${neilWarn ? 'warn' : ''}">${neilHours}h</div>
+      <div class="detail">
+        Level 1–2: ${neilTraining}h${neilL3 > 0 ? ` · Level 3: ${neilL3}h` : ''}<br>
+        ${neilWarn ? `<span class="warn-text">Above ${NEIL_MAX_HOURS}h threshold</span>` : 'Within sustainable range'}
+      </div>
+    </div>
+    <div class="summary-block">
+      <h4>Active this week</h4>
+      <div class="stat">${allActive.length}</div>
+      <div class="detail">${allActive.map(esc).join('<br>') || 'Nothing scheduled'}</div>
+    </div>
+    <div class="summary-block">
+      <h4>Participants in training</h4>
+      <div class="stat">${totalParticipants}</div>
+      <div class="detail">Level 1: ${byLevel[1]} · Level 2: ${byLevel[2]} · Level 3: ${byLevel[3]}</div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// SLOT ACTIVITY MODAL
+// ============================================================================
+
+let editingIdx = null;
+let pendingSlot = null;
+
+function openAddModal(person, day, session, presetType = null) {
+  if (!isEditable()) return;
+  editingIdx = null;
+  pendingSlot = { person, day, session };
+  $('modalTitle').textContent = `Add activity · ${personName(person)} · ${day} ${session.toUpperCase()}`;
+  $('activityTypeSelect').value = presetType || 'training';
+  $('cohortInput').value = '';
+  $('modal').classList.add('active');
+  $('cohortInput').focus();
+}
+
+function openEditModal(idx) {
+  const act = getWeekActivities(state.currentWeek)[idx];
+  if (!act) return;
+  editingIdx = idx;
+  pendingSlot = null;
+  $('modalTitle').textContent = 'Edit activity';
+  $('activityTypeSelect').value = ACTIVITY_LABELS[act.type] ? act.type : 'training';
+  $('cohortInput').value = act.cohort || '';
+  $('modal').classList.add('active');
+}
+
+function closeModal() {
+  $('modal').classList.remove('active');
+  editingIdx = null;
+  pendingSlot = null;
+}
+
+// ============================================================================
+// COHORT CRUD
+// ============================================================================
+
+let editingCohortId = null;
+let selectedTimeslot = null;
+
+function openCohortForm(cohortId = null) {
+  editingCohortId = cohortId;
+  const scn = currentScn();
+  $('cohortFormTitle').textContent = cohortId ? 'Edit Level 1–2 cohort' : 'New Level 1–2 cohort';
+
+  const existing = scn.cohorts.map(c => c.number).filter(n => !isNaN(n));
+  const nextNum = existing.length > 0 ? Math.max(...existing) + 1 : 10;
+  const c = cohortId ? scn.cohorts.find(c => c.id === cohortId) : null;
+  if (cohortId && !c) return;
+
+  $('cohortNumberInput').value = c ? c.number : nextNum;
+  $('cohortStartInput').value = c ? c.startDate : '';
+  $('cohortParticipantsInput').value = c ? c.participants : 6;
+  selectedTimeslot = c ? c.timeslotId : null;
+  $('facilitatorPerDay').innerHTML = '';
+  refreshCohortSlots(c ? (c.facilitators || null) : null, c ? c.facilitator : null);
+
+  $('cohortFormModal').classList.add('active');
+}
+
+function renderFacilitatorPerDay(fieldId, containerId, timeslotId, existingFacilitators, fallbackFacilitator) {
+  const field = $(fieldId);
+  const container = $(containerId);
+  const slot = TIMESLOTS.find(t => t.id === timeslotId);
+  if (!slot) { field.hidden = true; return; }
+
+  field.hidden = false;
+  container.innerHTML = '';
+
+  slot.days.forEach(day => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 12px;';
+
+    const lbl = document.createElement('label');
+    lbl.textContent = day;
+    lbl.htmlFor = containerId + '-' + day;
+    lbl.style.cssText = 'font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--ink); font-family: var(--font-body); margin: 0;';
+    wrap.appendChild(lbl);
+
+    const sel = document.createElement('select');
+    sel.id = containerId + '-' + day;
+    sel.dataset.day = day;
+    sel.innerHTML = '<option value="iain">Iain</option><option value="neil">Neil</option>';
+    sel.value = (existingFacilitators && existingFacilitators[day]) || fallbackFacilitator || 'iain';
+    wrap.appendChild(sel);
+    container.appendChild(wrap);
+  });
+}
+
+function readFacilitatorSelections(containerId = 'facilitatorPerDay') {
+  const out = {};
+  document.querySelectorAll('#' + containerId + ' select').forEach(s => { out[s.dataset.day] = s.value; });
+  return out;
+}
+
+// Draws the six timeslot buttons. A slot is unavailable when a cohort or Level 3 group
+// already holds one of its day/sessions over the dates being planned. Returns the
+// selection that is still valid (null if the chosen slot is now taken).
+function renderSlotPicker({ containerId, selected, startStr, endFor, excludeId, onPick }) {
+  const el = $(containerId);
+  el.innerHTML = '';
+  if (!startStr) {
+    const hint = document.createElement('div');
+    hint.className = 'slot-hint';
+    hint.textContent = 'Choose a start date to see which timeslots are free.';
+    el.appendChild(hint);
+    return selected;
+  }
+  const start = parseDate(startStr);
+  let stillSelected = selected;
+
+  TIMESLOTS.forEach(slot => {
+    const blockers = slotBlockers(slot.id, start, endFor(slot.id), excludeId);
+    const taken = blockers.length > 0;
+    if (taken && selected === slot.id) stillSelected = null;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'timeslot-btn' + (taken ? ' taken' : '') + (!taken && selected === slot.id ? ' selected' : '');
+    btn.disabled = taken;
+    btn.setAttribute('aria-pressed', !taken && selected === slot.id ? 'true' : 'false');
+
+    let takenLabel = '';
+    if (taken) {
+      const b = blockers[0];
+      const partial = b.sharedDays.length < b.ts.days.length ? ' ' + b.sharedDays.join('/') : '';
+      takenLabel = `● ${esc(b.label)}${partial} (${b.end ? 'until ' + shortDate(b.end) : 'ongoing'})`;
+    }
+    btn.innerHTML = `
+      <div class="ts-label">${slot.days[0]} / ${slot.days[1]} ${slot.session.toUpperCase()}</div>
+      <div class="ts-time">${slot.time}</div>
+      ${takenLabel ? `<div class="ts-taken">${takenLabel}</div>` : ''}
+    `;
+    if (!taken) btn.addEventListener('click', () => onPick(slot.id));
+    el.appendChild(btn);
+  });
+  return stillSelected;
+}
+
+function refreshCohortSlots(facilitators = null, fallback = null) {
+  const startStr = $('cohortStartInput').value;
+  const existing = facilitators || readFacilitatorSelections('facilitatorPerDay');
+  selectedTimeslot = renderSlotPicker({
+    containerId: 'timeslotButtons',
+    selected: selectedTimeslot,
+    startStr,
+    excludeId: editingCohortId,
+    endFor: tsId => {
+      const sessions = generateSchedule(startStr, tsId);
+      return sessions.length ? parseDate(sessions[sessions.length - 1].dateStr) : parseDate(startStr);
+    },
+    onPick: tsId => { selectedTimeslot = tsId; refreshCohortSlots(); },
+  });
+  if (selectedTimeslot && startStr) renderFacilitatorPerDay('facilitatorsField', 'facilitatorPerDay', selectedTimeslot, existing, fallback);
+  else $('facilitatorsField').hidden = true;
+}
+
+// ============================================================================
+// LEVEL 3 GROUPS
+// ============================================================================
+// Stored with the ongoing activities (type 'l3') so they flow into every week,
+// but each one holds a whole training timeslot like a cohort does.
+
+let editingL3Id = null;
+let selectedL3Timeslot = null;
+
+function openL3Form(id = null) {
+  editingL3Id = id;
+  const g = id ? currentScn().ongoing.find(o => o.id === id) : null;
+  if (id && !g) return;
+  $('l3FormTitle').textContent = g ? 'Edit Level 3 group' : 'New Level 3 group';
+  $('l3NameInput').value = g ? g.name : 'Level 3';
+  $('l3ParticipantsInput').value = g ? g.participants : 6;
+  $('l3StartInput').value = g ? g.startDate : '';
+  $('l3EndInput').value = g ? (g.endDate || '') : '';
+  selectedL3Timeslot = g ? g.timeslotId : null;
+  $('l3FacilitatorPerDay').innerHTML = '';
+  refreshL3Slots(g ? (g.facilitators || null) : null);
+  $('l3FormModal').classList.add('active');
+}
+
+function refreshL3Slots(facilitators = null) {
+  const startStr = $('l3StartInput').value;
+  const endStr = $('l3EndInput').value;
+  const existing = facilitators || readFacilitatorSelections('l3FacilitatorPerDay');
+  selectedL3Timeslot = renderSlotPicker({
+    containerId: 'l3TimeslotButtons',
+    selected: selectedL3Timeslot,
+    startStr,
+    excludeId: editingL3Id,
+    endFor: () => (endStr ? parseDate(endStr) : null),
+    onPick: tsId => { selectedL3Timeslot = tsId; refreshL3Slots(); },
+  });
+  if (selectedL3Timeslot && startStr) renderFacilitatorPerDay('l3FacilitatorsField', 'l3FacilitatorPerDay', selectedL3Timeslot, existing, 'neil');
+  else $('l3FacilitatorsField').hidden = true;
+}
+
+function saveL3Form() {
+  const name = $('l3NameInput').value.trim() || 'Level 3';
+  const participants = parseInt($('l3ParticipantsInput').value) || 0;
+  const startDate = $('l3StartInput').value;
+  const endDate = $('l3EndInput').value || null;
+
+  if (!startDate || !selectedL3Timeslot) {
+    toast('Choose a start date and a timeslot.');
+    return;
+  }
+  if (endDate && endDate < startDate) {
+    toast('The end date is before the start date.');
+    return;
+  }
+
+  const ts = TIMESLOTS.find(t => t.id === selectedL3Timeslot);
+  const facilitators = readFacilitatorSelections('l3FacilitatorPerDay');
+  const group = {
+    name, type: 'l3', startDate, endDate, participants,
+    timeslotId: ts.id,
+    facilitators,
+    facilitator: facilitators[ts.days[0]] || 'neil',
+    slots: ts.days.map(day => ({ day, session: ts.session })),
+  };
+
+  const scn = currentScn();
+  if (editingL3Id) {
+    const idx = scn.ongoing.findIndex(o => o.id === editingL3Id);
+    if (idx >= 0) scn.ongoing[idx] = { ...scn.ongoing[idx], ...group };
+  } else {
+    scn.ongoing.push({ id: 'l3-' + Date.now(), ...group });
+  }
+
+  commit();
+  $('l3FormModal').classList.remove('active');
+  render();
+}
+
+async function deleteCohort(id) {
+  const scn = currentScn();
+  const cohort = scn.cohorts.find(c => c.id === id);
+  if (!cohort) return;
+  if (!(await askConfirm(`Delete Cohort ${cohort.number}?`, 'Its sessions are removed from every week of this scenario.', 'Delete', true))) return;
+  scn.cohorts = scn.cohorts.filter(c => c.id !== id);
+  commit();
+  render();
+}
+
+// ============================================================================
+// AUTO-FILL ROLLING COHORTS
+// ============================================================================
+
+// Timeslots available for rolling generation (Tue/Thu slots are being phased out)
+const ROLLING_TIMESLOT_IDS = ['mw-am', 'mw-pm', 'wf-am', 'wf-pm'];
+
+function openAutoFillModal() {
+  const scn = currentScn();
+  const container = $('autoFillSlots');
+  container.innerHTML = '';
+
+  ROLLING_TIMESLOT_IDS.forEach(tsId => {
+    const ts = TIMESLOTS.find(t => t.id === tsId);
+    if (!ts) return;
+
+    const latest = scn.cohorts
+      .filter(c => c.timeslotId === tsId && c.sessions.length > 0)
+      .sort((a, b) => cohortEndDate(b) - cohortEndDate(a))[0];
+
+    // An open-ended Level 3 group on this slot means no new cohorts fit there
+    const today = getMondayOf(new Date());
+    const l3Here = slotBlockers(tsId, today, null, null).filter(b => b.kind === 'l3');
+    const l3Open = l3Here.find(b => !b.end);
+
+    const wrap = document.createElement('label');
+    wrap.className = 'check-tile';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.id = 'autofill-' + tsId;
+    cb.dataset.timeslotId = tsId;
+    cb.checked = !l3Open;
+    cb.style.marginTop = '3px';
+    wrap.appendChild(cb);
+
+    const text = document.createElement('div');
+    text.innerHTML = `
+      <div class="tile-title">${ts.days[0]} / ${ts.days[1]} ${ts.session.toUpperCase()}</div>
+      <div class="tile-sub">${latest ? `Continues from Cohort ${esc(latest.number)} (ends ${longDate(cohortEndDate(latest))})` : 'No existing cohort · starts fresh'}</div>
+      ${l3Here.length ? `<div class="tile-sub" style="color: var(--l3);">Held by ${esc(l3Here[0].label)} from ${shortDate(l3Here[0].start)}${l3Here[0].end ? ' to ' + shortDate(l3Here[0].end) : ', ongoing'}</div>` : ''}
+    `;
+    wrap.appendChild(text);
+    container.appendChild(wrap);
+  });
+
+  const existingNums = scn.cohorts.map(c => c.number).filter(n => !isNaN(n));
+  $('autoFillStartNum').value = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 16;
+  $('autoFillEndDate').value = formatDateISO(addDays(new Date(), 365));
+  $('autoFillFacilitator').value = 'neil';
+  $('autoFillParticipants').value = 6;
+  $('autoFillModal').classList.add('active');
+}
+
+// Next cohort start: the week after the last session is the admin week, so the
+// new cohort starts on the slot's first day in the week after that.
+function computeNextCohortStart(lastSessionDate, timeslot) {
+  const newCohortWeekMon = addDays(getMondayOf(lastSessionDate), 14);
+  return firstSlotDayFrom(newCohortWeekMon, timeslot);
+}
+
+function firstSlotDayFrom(monday, timeslot) {
+  const dayIndices = timeslot.days.map(d => DAY_INDEX[d]);
+  for (let i = 0; i < 5; i++) {
+    if (dayIndices.includes(i)) return formatDateISO(addDays(monday, i));
+  }
+  return formatDateISO(monday);
+}
+
+async function runAutoFill() {
+  const scn = currentScn();
+  const selectedSlots = Array.from(document.querySelectorAll('#autoFillSlots input[type="checkbox"]:checked')).map(cb => cb.dataset.timeslotId);
+
+  if (selectedSlots.length === 0) { toast('Select at least one timeslot to fill.'); return; }
+
+  const startNum = parseInt($('autoFillStartNum').value);
+  const endDateStr = $('autoFillEndDate').value;
+  const facilitator = $('autoFillFacilitator').value;
+  const participants = parseInt($('autoFillParticipants').value) || 6;
+
+  if (!startNum || !endDateStr) { toast('Set a starting cohort number and an end date.'); return; }
+
+  const horizonEnd = parseDate(endDateStr);
+  const newCohorts = [];
+
+  selectedSlots.forEach(tsId => {
+    const ts = TIMESLOTS.find(t => t.id === tsId);
+    if (!ts) return;
+
+    let latestEnd = null;
+    scn.cohorts.filter(c => c.timeslotId === tsId).forEach(c => {
+      const d = cohortEndDate(c);
+      if (d && (!latestEnd || d > latestEnd)) latestEnd = d;
+    });
+
+    let nextStartStr = latestEnd
+      ? computeNextCohortStart(latestEnd, ts)
+      : firstSlotDayFrom(addDays(getMondayOf(new Date()), 7), ts);
+
+    for (let safety = 0; safety < 30; safety++) {
+      if (parseDate(nextStartStr) > horizonEnd) break;
+      const sessions = generateSchedule(nextStartStr, tsId);
+      if (sessions.length === 0) break;
+
+      // Skip past any Level 3 group holding this slot; stop if one runs with no end
+      const l3 = slotBlockers(tsId, parseDate(nextStartStr), parseDate(sessions[sessions.length - 1].dateStr), null).filter(b => b.kind === 'l3');
+      if (l3.length) {
+        if (l3.some(b => !b.end)) break;
+        const lastEnd = new Date(Math.max(...l3.map(b => b.end)));
+        nextStartStr = firstSlotDayFrom(addDays(getMondayOf(lastEnd), 7), ts);
+        continue;
+      }
+
+      const facilitatorsObj = {};
+      ts.days.forEach(d => { facilitatorsObj[d] = facilitator; });
+
+      newCohorts.push({
+        id: 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        number: null, // assigned after sorting
+        startDate: nextStartStr,
+        participants,
+        facilitators: facilitatorsObj,
+        timeslotId: tsId,
+        sessions,
+      });
+
+      nextStartStr = computeNextCohortStart(parseDate(sessions[sessions.length - 1].dateStr), ts);
+    }
+  });
+
+  if (newCohorts.length === 0) {
+    toast('No cohorts fit before the end date. Pick a later end date or other timeslots.', 5000);
+    return;
+  }
+
+  // Number chronologically across all slots
+  newCohorts.sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+  newCohorts.forEach((c, i) => { c.number = startNum + i; });
+  const lastNum = startNum + newCohorts.length - 1;
+
+  const includeWF = $('autoFillIncludeWF').checked;
+  const hasWF = scn.ongoing.some(o => o.type === 'wf');
+  const willCreateWF = includeWF && !hasWF;
+  const wfMsg = willCreateWF ? '\nAlso adds Work Foundations as an ongoing activity.'
+    : (includeWF && hasWF ? '\nWork Foundations already exists, so it is not added again.' : '');
+
+  const ok = await askConfirm(
+    `Add ${newCohorts.length} cohort${newCohorts.length !== 1 ? 's' : ''}?`,
+    `Cohort ${startNum} through ${lastNum}, up to ${longDate(horizonEnd)}.${wfMsg}`,
+    'Add cohorts'
+  );
+  if (!ok) return;
+
+  scn.cohorts.push(...newCohorts);
+
+  if (willCreateWF) {
+    scn.ongoing.push({
+      id: 'o-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      name: 'Work Foundations',
+      type: 'wf',
+      startDate: formatDateISO(new Date()),
+      endDate: null,
+      facilitator: 'iain',
+      slots: ['Wed', 'Thu', 'Fri'].flatMap(day => SESSIONS.map(session => ({ day, session }))),
+    });
+  }
+
+  commit();
+  $('autoFillModal').classList.remove('active');
+  render();
+}
+
+// ============================================================================
+// ONGOING ACTIVITY CRUD
+// ============================================================================
+
+let editingOngoingId = null;
+
+function openOngoingForm(ongoingId = null) {
+  editingOngoingId = ongoingId;
+  const scn = currentScn();
+  $('ongoingFormTitle').textContent = ongoingId ? 'Edit ongoing activity' : 'New ongoing activity';
+
+  const grid = $('ongoingDaysGrid');
+  const headStyle = 'text-align: center; font-family: var(--font-mono); font-size: 10px; color: var(--ink-faint); text-transform: uppercase;';
+  grid.innerHTML = `<div></div><div style="${headStyle}">AM</div><div style="${headStyle}">PM</div>`;
+
+  DAYS.forEach(day => {
+    const dayLabel = document.createElement('div');
+    dayLabel.textContent = day;
+    dayLabel.style.cssText = 'font-size: 12px; padding: 4px;';
+    grid.appendChild(dayLabel);
+
+    SESSIONS.forEach(session => {
+      const wrap = document.createElement('div');
+      wrap.style.textAlign = 'center';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.id = `ongoing-${day}-${session}`;
+      cb.dataset.day = day;
+      cb.dataset.session = session;
+      cb.setAttribute('aria-label', `${day} ${session.toUpperCase()}`);
+      wrap.appendChild(cb);
+      grid.appendChild(wrap);
+    });
+  });
+
+  const ong = ongoingId ? scn.ongoing.find(o => o.id === ongoingId) : null;
+  $('ongoingNameInput').value = ong ? ong.name : '';
+  $('ongoingTypeSelect').value = ong ? ong.type : 'wf';
+  $('ongoingStartInput').value = ong ? ong.startDate : '';
+  $('ongoingEndInput').value = ong ? (ong.endDate || '') : '';
+  $('ongoingFacilitatorSelect').value = ong ? ong.facilitator : 'iain';
+  if (ong) {
+    ong.slots.forEach(s => {
+      const cb = grid.querySelector(`input[data-day="${s.day}"][data-session="${s.session}"]`);
+      if (cb) cb.checked = true;
+    });
+  }
+
+  $('ongoingFormModal').classList.add('active');
+}
+
+async function deleteOngoing(id) {
+  const scn = currentScn();
+  const ong = scn.ongoing.find(o => o.id === id);
+  if (!ong) return;
+  if (!(await askConfirm(`Delete "${ong.name}"?`, 'It is removed from every week of this scenario.', 'Delete', true))) return;
+  scn.ongoing = scn.ongoing.filter(o => o.id !== id);
+  commit();
+  render();
+}
+
+// ============================================================================
+// IMPORT / EXPORT
+// ============================================================================
+
+async function exportScenario() {
+  const payload = {
+    format: 'workload-planner-scenario',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    name: state.currentScenario,
+    data: currentScn(),
+  };
+  const text = JSON.stringify(payload, null, 2);
+  const filename = 'workload_' + state.currentScenario.replace(/[^a-z0-9\-_]+/gi, '_') + '.json';
+
+  if (downloadsApi) {
+    try {
+      const res = await downloadsApi.save({ filename, data: text });
+      if (res && res.status && res.status !== 'saved') toast('Export cancelled.');
+    } catch (_) {
+      toast('Export is not available here.');
+    }
+    return;
+  }
+  if (mode === 'local') {
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    return;
+  }
+  toast('Export is not available here.');
+}
+
+async function importScenarioFile(file) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await file.text());
+  } catch (err) {
+    toast('That file is not valid JSON. Choose a file made with Export.', 5000);
+    return;
+  }
+  if (!parsed || parsed.format !== 'workload-planner-scenario' || !parsed.data || !parsed.name) {
+    toast('That file is not a workload planner scenario. Choose a file made with Export.', 5000);
+    return;
+  }
+
+  let importName = String(parsed.name);
+  if (state.scenarios[importName]) {
+    const choice = await askChoice(
+      `"${importName}" already exists`,
+      'Replace the existing scenario with the imported one, or keep both?',
+      [
+        { label: 'Cancel', value: null },
+        { label: 'Keep both', value: 'copy' },
+        { label: 'Replace', value: 'replace', kind: 'warn' },
+      ]
+    );
+    if (!choice) return;
+    if (choice === 'copy') importName = importName + ' (imported ' + new Date().toLocaleDateString('en-AU') + ')';
+  }
+
+  const data = normalizeScenario(parsed.data);
+  // Imported files may predate the current holiday data; rebuild their sessions.
+  data.cohorts.forEach(c => { if (c.startDate && c.timeslotId) c.sessions = generateSchedule(c.startDate, c.timeslotId); });
+
+  state.scenarios[importName] = data;
+  state.currentScenario = importName;
+  commit();
+  saveView();
+  render();
+  toast(`Imported "${importName}".` + (mode === 'edit' ? ' Publish to share it with the team.' : ''));
+}
+
+// ============================================================================
+// EVENT WIRING
+// ============================================================================
+
+function setPanelCollapsed(name, collapsed) {
+  $(name + 'Panel').classList.toggle('collapsed', collapsed);
+  $(name + 'PanelToggle').textContent = collapsed ? '▶' : '▼';
+  $(name + 'PanelHeader').setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+}
+
+function wireEvents() {
+  // Slot activity modal
+  $('modalCancel').addEventListener('click', closeModal);
+  $('modalSave').addEventListener('click', () => {
+    const type = $('activityTypeSelect').value;
+    const cohort = $('cohortInput').value.trim();
+    if (editingIdx !== null) {
+      updateActivity(state.currentWeek, editingIdx, { type, cohort });
+    } else if (pendingSlot) {
+      addActivity(state.currentWeek, { ...pendingSlot, type, cohort, source: 'manual' });
+    }
+    closeModal();
+    render();
+  });
+
+  // Cohort form
+  $('addCohortBtn').addEventListener('click', () => openCohortForm());
+  $('cohortStartInput').addEventListener('change', () => refreshCohortSlots());
+
+  // Level 3 form
+  $('addL3Btn').addEventListener('click', () => openL3Form());
+  $('l3StartInput').addEventListener('change', () => refreshL3Slots());
+  $('l3EndInput').addEventListener('change', () => refreshL3Slots());
+  $('l3FormCancel').addEventListener('click', () => $('l3FormModal').classList.remove('active'));
+  $('l3FormSave').addEventListener('click', saveL3Form);
+  $('cohortFormCancel').addEventListener('click', () => $('cohortFormModal').classList.remove('active'));
+  $('cohortFormSave').addEventListener('click', () => {
+    const number = parseInt($('cohortNumberInput').value);
+    const startDate = $('cohortStartInput').value;
+    const participants = parseInt($('cohortParticipantsInput').value) || 0;
+
+    if (!number || !startDate || !selectedTimeslot) {
+      toast('Fill in the cohort number and start date, and choose a timeslot.');
+      return;
+    }
+
+    const facilitators = readFacilitatorSelections('facilitatorPerDay');
+    const sessions = generateSchedule(startDate, selectedTimeslot);
+    const scn = currentScn();
+
+    if (editingCohortId) {
+      const idx = scn.cohorts.findIndex(c => c.id === editingCohortId);
+      if (idx >= 0) {
+        scn.cohorts[idx] = { ...scn.cohorts[idx], number, startDate, participants, facilitators, timeslotId: selectedTimeslot, sessions };
+        delete scn.cohorts[idx].facilitator; // older single-facilitator field
+      }
+    } else {
+      scn.cohorts.push({ id: 'c-' + Date.now(), number, startDate, participants, facilitators, timeslotId: selectedTimeslot, sessions });
+    }
+
+    commit();
+    $('cohortFormModal').classList.remove('active');
+    render();
+  });
+
+  // Auto-fill
+  $('autoFillBtn').addEventListener('click', openAutoFillModal);
+  $('autoFillCancel').addEventListener('click', () => $('autoFillModal').classList.remove('active'));
+  $('autoFillRun').addEventListener('click', runAutoFill);
+
+  // Ongoing form
+  $('addOngoingBtn').addEventListener('click', () => openOngoingForm());
+  $('ongoingFormCancel').addEventListener('click', () => $('ongoingFormModal').classList.remove('active'));
+  $('ongoingFormSave').addEventListener('click', () => {
+    const name = $('ongoingNameInput').value.trim();
+    const type = $('ongoingTypeSelect').value;
+    const startDate = $('ongoingStartInput').value;
+    const endDate = $('ongoingEndInput').value || null;
+    const facilitator = $('ongoingFacilitatorSelect').value;
+    const slots = Array.from(document.querySelectorAll('#ongoingDaysGrid input[type="checkbox"]:checked'))
+      .map(cb => ({ day: cb.dataset.day, session: cb.dataset.session }));
+
+    if (!name || !startDate || slots.length === 0) {
+      toast('Fill in the name and start date, and tick at least one day and session.');
+      return;
+    }
+    if (endDate && endDate < startDate) {
+      toast('The end date is before the start date.');
+      return;
+    }
+
+    const scn = currentScn();
+    if (editingOngoingId) {
+      const idx = scn.ongoing.findIndex(o => o.id === editingOngoingId);
+      if (idx >= 0) scn.ongoing[idx] = { ...scn.ongoing[idx], name, type, startDate, endDate, facilitator, slots };
+    } else {
+      scn.ongoing.push({ id: 'o-' + Date.now(), name, type, startDate, endDate, facilitator, slots });
+    }
+
+    commit();
+    $('ongoingFormModal').classList.remove('active');
+    render();
+  });
+
+  // Scenarios
+  $('scenarioSelect').addEventListener('change', e => {
+    state.currentScenario = e.target.value;
+    saveView();
+    render();
+  });
+
+  $('saveAsBtn').addEventListener('click', () => {
+    $('saveAsInput').value = '';
+    $('saveAsModal').classList.add('active');
+    $('saveAsInput').focus();
+  });
+  $('saveAsCancel').addEventListener('click', () => $('saveAsModal').classList.remove('active'));
+  $('saveAsConfirm').addEventListener('click', () => {
+    const name = $('saveAsInput').value.trim();
+    if (!name) { toast('Give the scenario a name.'); return; }
+    if (state.scenarios[name]) { toast(`A scenario called "${name}" already exists. Choose another name.`); return; }
+    state.scenarios[name] = structuredClone(currentScn());
+    state.currentScenario = name;
+    commit();
+    saveView();
+    $('saveAsModal').classList.remove('active');
+    render();
+  });
+  $('saveAsInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('saveAsConfirm').click(); });
+
+  $('deleteBtn').addEventListener('click', async () => {
+    if (state.currentScenario === 'Current state') {
+      toast('"Current state" is the main plan and cannot be deleted.');
+      return;
+    }
+    if (!(await askConfirm(`Delete scenario "${state.currentScenario}"?`, 'Its cohorts, activities and weekly edits are removed.', 'Delete', true))) return;
+    delete state.scenarios[state.currentScenario];
+    state.currentScenario = 'Current state';
+    commit();
+    saveView();
+    render();
+  });
+
+  $('clearAllBtn').addEventListener('click', async () => {
+    const scn = currentScn();
+    const count = Object.keys(scn.overrides).length;
+    if (count === 0) { toast('No weeks have been edited by hand in this scenario.'); return; }
+    if (!(await askConfirm('Clear hand edits?', `${count} edited week${count !== 1 ? 's go' : ' goes'} back to what the cohorts and ongoing activities produce.`, 'Clear edits', true))) return;
+    scn.overrides = {};
+    commit();
+    render();
+  });
+
+  $('exportBtn').addEventListener('click', exportScenario);
+  $('importBtn').addEventListener('click', () => $('importFile').click());
+  $('importFile').addEventListener('change', e => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (file) importScenarioFile(file);
+  });
+
+  // Collapsible panels
+  ['cohort', 'holiday'].forEach(name => {
+    const toggle = () => {
+      setPanelCollapsed(name, !$(name + 'Panel').classList.contains('collapsed'));
+      saveView();
+    };
+    $(name + 'PanelHeader').addEventListener('click', toggle);
+    $(name + 'PanelHeader').addEventListener('keydown', e => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+    });
+  });
+  $('showPastHolidaysBtn').addEventListener('click', () => {
+    showPastHolidays = !showPastHolidays;
+    renderCalendar();
+  });
+
+  // Week navigation
+  $('weekSlider').addEventListener('input', e => setWeek(parseInt(e.target.value)));
+  $('prevWeekBtn').addEventListener('click', () => setWeek(state.currentWeek - 1));
+  $('nextWeekBtn').addEventListener('click', () => setWeek(state.currentWeek + 1));
+  $('todayWeekBtn').addEventListener('click', () => setWeek(todayWeekIdx()));
+
+  $('timelineGrid').addEventListener('click', e => {
+    const rect = $('timelineInner').getBoundingClientRect();
+    const WEEKS_TOTAL = getTimelineHorizon();
+    const week = Math.floor(((e.clientX - rect.left) / rect.width) * (WEEKS_TOTAL + 1));
+    if (week >= 0 && week <= WEEKS_TOTAL) setWeek(week);
+  });
+
+  // Palette drag
+  document.querySelectorAll('.palette-item').forEach(item => {
+    item.addEventListener('dragstart', e => e.dataTransfer.setData('activity-type', item.dataset.type));
+  });
+
+  // Escape closes the open form; clicking the backdrop does too
+  document.querySelectorAll('.modal-overlay').forEach(overlay => {
+    if (overlay.id === 'confirmModal') return;
+    overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('active'); });
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    document.querySelectorAll('.modal-overlay.active').forEach(o => { if (o.id !== 'confirmModal') o.classList.remove('active'); });
+  });
+}
+
+// ============================================================================
+// INIT
+// ============================================================================
+
+$('app').appendChild($('appTemplate').content.cloneNode(true));
+wireEvents();
+loadView();
+initHosting();
+</script>

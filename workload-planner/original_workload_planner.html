@@ -1,0 +1,3251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Workload Planner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ee;
+  --bg-panel: #ffffff;
+  --bg-sunken: #ebe8e0;
+  --ink: #1c1c1a;
+  --ink-soft: #56544c;
+  --ink-faint: #8c8a82;
+  --rule: #d8d4ca;
+  --rule-soft: #e8e4d9;
+  --accent: #2d4a3e;
+  --accent-soft: #d6e2d8;
+  --warn: #9a2a2a;
+  --warn-soft: #f4dcdc;
+  --neil: #6b4e2e;
+  --neil-soft: #e8dcc8;
+  --iain: #2d4a3e;
+  --iain-soft: #d6e2d8;
+  --m1: #c25a1a;  /* Game Playtester */
+  --m2: #b8941a;  /* Game Bug Tester */
+  --m3: #7a479a;  /* Lead Gameplay Tester */
+  --m4: #1a7ca8;  /* Test Case Writer */
+  --m5: #1f8a47;  /* Test Plan Writer */
+  --shadow: 0 1px 0 rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.05);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+  padding: 24px;
+  min-height: 100vh;
+}
+
+.app {
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+header {
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.title-block h1 {
+  font-family: 'Fraunces', serif;
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.title-block .subtitle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.scenarios {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.scenarios label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-right: 4px;
+}
+
+select, button, input[type="text"], input[type="number"], input[type="date"] {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  background: var(--bg-panel);
+  color: var(--ink);
+  border: 1px solid var(--rule);
+  padding: 7px 11px;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+input[type="text"], input[type="number"], input[type="date"] { cursor: text; }
+
+button {
+  font-weight: 500;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+button:hover:not(:disabled) {
+  background: var(--bg-sunken);
+  border-color: var(--ink-soft);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.primary {
+  background: var(--ink);
+  color: var(--bg);
+  border-color: var(--ink);
+}
+
+button.primary:hover:not(:disabled) {
+  background: var(--ink-soft);
+}
+
+button.warn {
+  color: var(--warn);
+  border-color: var(--warn-soft);
+}
+
+button.warn:hover:not(:disabled) {
+  background: var(--warn-soft);
+}
+
+button.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Section panels */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel-header.no-toggle { cursor: default; }
+
+.panel-header h2 {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 17px;
+}
+
+.panel-header .panel-meta {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.panel-toggle {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.panel-body {
+  padding: 20px;
+}
+
+.panel.collapsed .panel-body { display: none; }
+
+/* Cohort management */
+.cohort-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cohort-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-sunken);
+  border-radius: 3px;
+  border-left: 3px solid var(--rule);
+}
+
+.cohort-row.training { border-left-color: var(--accent); }
+.cohort-row.continuation { border-left-color: var(--neil); }
+.cohort-row.ace { border-left-color: #7a479a; }
+.cohort-row.wf { border-left-color: #c25a1a; }
+
+.cohort-row .cohort-name {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.cohort-row .cohort-detail {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+
+.cohort-row .cohort-stat {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.cohort-row .cohort-stat .value {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cohort-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.no-cohorts {
+  text-align: center;
+  padding: 30px;
+  color: var(--ink-faint);
+  font-size: 13px;
+}
+
+.add-buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Cohort/activity form */
+.cohort-form {
+  background: var(--bg-sunken);
+  border-radius: 4px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.form-row {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-row.cols-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+
+.form-field label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.form-field input, .form-field select {
+  width: 100%;
+}
+
+.timeslot-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.timeslot-btn {
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg-panel);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.timeslot-btn.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.timeslot-btn.taken {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.timeslot-btn .ts-label {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.timeslot-btn .ts-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.timeslot-btn .ts-taken {
+  font-size: 10px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+}
+
+.form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+
+/* Timeline */
+.timeline-grid {
+  position: relative;
+  height: 200px;
+  border-top: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.timeline-inner {
+  position: relative;
+  height: 100%;
+  min-width: 100%;
+}
+
+.timeline-month {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-left: 1px dashed var(--rule);
+  padding-left: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding-top: 4px;
+}
+
+.timeline-week-cursor {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+  z-index: 5;
+  pointer-events: none;
+}
+
+.timeline-week-cursor::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border-radius: 50%;
+}
+
+.cohort-bar {
+  position: absolute;
+  height: 18px;
+  border-radius: 2px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.cohort-bar:hover { opacity: 0.85; }
+
+.cohort-bar.training { background: var(--iain-soft); color: var(--iain); border: 1px solid var(--iain); }
+.cohort-bar.admin-week {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-sunken),
+    var(--bg-sunken) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  color: var(--ink-faint);
+  border: 1px dashed var(--ink-faint);
+  font-style: italic;
+  font-size: 9px;
+}
+.cohort-bar.continuation { background: var(--neil-soft); color: var(--neil); border: 1px solid var(--neil); }
+.cohort-bar.ace { background: #e8dde8; color: #6a3e6a; border: 1px solid #6a3e6a; }
+.cohort-bar.wf { background: #f0e0cc; color: #8a5a1a; border: 1px solid #8a5a1a; }
+
+.week-selector {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rule-soft);
+}
+
+.week-selector label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.week-display {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 500;
+  min-width: 200px;
+}
+
+input[type="range"] {
+  flex: 1;
+  max-width: 400px;
+}
+
+/* Workload editor */
+.editor {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.palette {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  height: fit-content;
+  position: sticky;
+  top: 16px;
+}
+
+.palette h3 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 10px;
+}
+
+.palette-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.palette-item {
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: grab;
+  background: var(--bg-panel);
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.palette-item:hover {
+  background: var(--bg-sunken);
+  border-color: var(--ink-soft);
+}
+
+.palette-item:active { cursor: grabbing; }
+
+.palette-item.training { background: var(--iain-soft); border-color: var(--iain); color: var(--iain); }
+.palette-item.wf { background: #efe4d4; border-color: #8a6a3a; color: #5e4720; }
+.palette-item.continuation { background: var(--neil-soft); border-color: var(--neil); color: var(--neil); }
+.palette-item.ace { background: #e8dde8; border-color: #6a3e6a; color: #6a3e6a; }
+.palette-item.makeup { background: var(--warn-soft); border-color: var(--warn); color: var(--warn); }
+
+.palette-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule-soft);
+  line-height: 1.5;
+}
+
+.schedule {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.schedule-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.schedule-header h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 17px;
+}
+
+.override-badge, .derived-badge {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+.override-badge {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.derived-badge {
+  background: var(--bg-sunken);
+  color: var(--ink-faint);
+}
+
+.admin-badge {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 10px;
+  margin-left: 4px;
+  vertical-align: middle;
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--bg-sunken),
+    var(--bg-sunken) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  color: var(--ink-soft);
+  border: 1px dashed var(--ink-faint);
+}
+
+.schedule-totals {
+  display: flex;
+  gap: 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+}
+
+.total {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.total .name {
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.total .value {
+  font-weight: 600;
+}
+
+.total .value.warn { color: var(--warn); }
+
+.grid {
+  display: grid;
+  grid-template-columns: 60px repeat(5, 1fr);
+  border-collapse: collapse;
+}
+
+.grid-cell {
+  border-right: 1px solid var(--rule-soft);
+  border-bottom: 1px solid var(--rule-soft);
+  padding: 8px;
+  min-height: 70px;
+  position: relative;
+}
+
+.grid-cell:last-child { border-right: none; }
+
+.grid-cell.lane-iain { background: rgba(45, 74, 62, 0.04); }
+.grid-cell.lane-neil { background: rgba(107, 78, 46, 0.05); }
+.grid-cell.lane-iain.lane-divider { border-bottom: 2px solid var(--rule); }
+
+.grid-cell.holiday-day {
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(154, 42, 42, 0.04),
+    rgba(154, 42, 42, 0.04) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+}
+
+.day-header {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 10px 8px;
+  background: var(--bg-sunken);
+  color: var(--ink-soft);
+  min-height: auto;
+}
+
+.day-header .day-date {
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--ink-faint);
+  margin-top: 2px;
+}
+
+.day-header.holiday-header {
+  color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.person-label {
+  background: var(--bg-sunken);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 8px 6px;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-right: 1px solid var(--rule);
+}
+
+.person-label.iain { color: var(--iain); background: rgba(45, 74, 62, 0.1); border-left: 4px solid var(--iain); }
+.person-label.neil { color: var(--neil); background: rgba(107, 78, 46, 0.1); border-left: 4px solid var(--neil); }
+
+.slot {
+  min-height: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+}
+
+.slot-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  position: absolute;
+  top: 2px;
+  left: 4px;
+}
+
+.slot.empty {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.slot.empty:hover {
+  background: var(--bg-sunken);
+}
+
+.slot.drop-target {
+  background: var(--accent-soft);
+  border: 1px dashed var(--accent);
+}
+
+.slot.overload {
+  background: var(--warn-soft);
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}
+
+.activity-block {
+  padding: 6px 8px 6px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  line-height: 1.3;
+  cursor: pointer;
+  position: relative;
+  margin-top: 14px;
+  border-left: 3px solid;
+  background: var(--bg-panel);
+}
+
+.activity-block.holiday {
+  background: var(--warn-soft);
+  border-left-color: var(--warn);
+  opacity: 0.7;
+}
+
+.activity-block.training[data-module="1"] { border-left-color: var(--m1); background: #fbeee2; }
+.activity-block.training[data-module="2"] { border-left-color: var(--m2); background: #faf2d4; }
+.activity-block.training[data-module="3"] { border-left-color: var(--m3); background: #efe3f3; }
+.activity-block.training[data-module="4"] { border-left-color: var(--m4); background: #d8ecf5; }
+.activity-block.training[data-module="5"] { border-left-color: var(--m5); background: #d8eedc; }
+.activity-block.wf { border-left-color: #8a6a3a; background: #efe4d4; }
+.activity-block.continuation { border-left-color: var(--neil); background: var(--neil-soft); }
+.activity-block.ace { border-left-color: #6a3e6a; background: #e8dde8; }
+
+.activity-name {
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.activity-cohort {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+.activity-module {
+  font-size: 10px;
+  margin-top: 2px;
+  opacity: 0.9;
+}
+
+.activity-delete {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.activity-block:hover .activity-delete { opacity: 1; }
+
+.activity-delete:hover { color: var(--warn); }
+
+.holiday-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--warn-soft);
+  color: var(--warn);
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-top: 3px;
+}
+
+.makeup-tag {
+  display: inline-block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--accent-soft);
+  color: var(--accent);
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-top: 3px;
+}
+
+.activity-block.makeup {
+  border-left-style: dashed;
+  border-left-width: 4px;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(28, 28, 26, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.modal-overlay.active { display: flex; }
+
+.modal {
+  background: var(--bg-panel);
+  border-radius: 4px;
+  padding: 24px;
+  min-width: 360px;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+}
+
+.modal h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: 18px;
+  margin-bottom: 16px;
+}
+
+.modal-field {
+  margin-bottom: 12px;
+}
+
+.modal-field label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.modal-field select, .modal-field input {
+  width: 100%;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+/* Module legend */
+.module-legend {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.module-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 3px;
+  font-size: 11px;
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+}
+
+.module-chip .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+/* Holiday clash list */
+.holiday-clashes {
+  background: var(--warn-soft);
+  border-radius: 3px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+
+.holiday-clashes h4 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--warn);
+  margin-bottom: 8px;
+}
+
+.holiday-clash-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 4px 0;
+  font-size: 12px;
+}
+
+.holiday-clash-item .date {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--warn);
+  min-width: 80px;
+}
+
+/* Summary panel */
+.summary {
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 20px 24px;
+  margin-top: 16px;
+  box-shadow: var(--shadow);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 24px;
+}
+
+.summary-block h4 {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  margin-bottom: 8px;
+}
+
+.summary-block .stat {
+  font-family: 'Fraunces', serif;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.summary-block .stat.warn { color: var(--warn); }
+
+.summary-block .detail {
+  font-size: 12px;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+footer {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rule);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="title-block">
+      <h1>Workload Planner</h1>
+      <div class="subtitle">QA Programme · Iain &amp; Neil · 2026</div>
+    </div>
+    <div class="scenarios">
+      <label>Scenario</label>
+      <select id="scenarioSelect"></select>
+      <button id="saveBtn">Save</button>
+      <button id="saveAsBtn">Save as…</button>
+      <button id="exportBtn">Export</button>
+      <button id="importBtn">Import</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none">
+      <button id="deleteBtn" class="warn">Delete</button>
+      <button id="clearAllBtn">Clear overrides</button>
+    </div>
+  </header>
+
+  <!-- Cohort management panel -->
+  <section class="panel" id="cohortPanel">
+    <div class="panel-header" id="cohortPanelHeader">
+      <div>
+        <h2>Cohorts &amp; ongoing activities</h2>
+        <div class="panel-meta" id="cohortPanelMeta">— cohorts</div>
+      </div>
+      <div class="panel-toggle" id="cohortPanelToggle">▼</div>
+    </div>
+    <div class="panel-body">
+      <div class="module-legend" id="moduleLegend"></div>
+      <div class="cohort-list" id="cohortList"></div>
+      <div class="add-buttons">
+        <button id="addCohortBtn" class="primary">+ New training cohort</button>
+        <button id="addOngoingBtn">+ New ongoing activity</button>
+        <button id="autoFillBtn">⟳ Auto-fill rolling cohorts</button>
+      </div>
+      <div id="holidayClashes"></div>
+    </div>
+  </section>
+
+  <!-- Cohort form modal -->
+  <div class="modal-overlay" id="cohortFormModal">
+    <div class="modal" style="min-width: 540px;">
+      <h3 id="cohortFormTitle">New training cohort</h3>
+      <div class="form-row cols-3">
+        <div class="form-field">
+          <label>Cohort number</label>
+          <input type="number" id="cohortNumberInput" min="1" />
+        </div>
+        <div class="form-field">
+          <label>Start date</label>
+          <input type="date" id="cohortStartInput" />
+        </div>
+        <div class="form-field">
+          <label>Participants</label>
+          <input type="number" id="cohortParticipantsInput" min="1" max="20" value="6" />
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 16px;">
+        <label>Timeslot</label>
+        <div class="timeslot-buttons" id="timeslotButtons"></div>
+      </div>
+      <div class="form-field" id="facilitatorsField" style="display: none;">
+        <label>Facilitator per day</label>
+        <div id="facilitatorPerDay" style="display: grid; gap: 8px; margin-top: 6px;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="cohortFormCancel">Cancel</button>
+        <button id="cohortFormSave" class="primary">Generate schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ongoing activity form modal -->
+  <div class="modal-overlay" id="ongoingFormModal">
+    <div class="modal" style="min-width: 540px;">
+      <h3 id="ongoingFormTitle">New ongoing activity</h3>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label>Name</label>
+          <input type="text" id="ongoingNameInput" placeholder="e.g. Work Foundations" />
+        </div>
+        <div class="form-field">
+          <label>Type</label>
+          <select id="ongoingTypeSelect">
+            <option value="wf">Work Foundations</option>
+            <option value="continuation">QA Open Studio</option>
+            <option value="ace">ACE</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label>Start date</label>
+          <input type="date" id="ongoingStartInput" />
+        </div>
+        <div class="form-field">
+          <label>End date (blank = ongoing)</label>
+          <input type="date" id="ongoingEndInput" />
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 12px;">
+        <label>Facilitator</label>
+        <select id="ongoingFacilitatorSelect">
+          <option value="iain">Iain</option>
+          <option value="neil">Neil</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Days &amp; sessions (check what applies)</label>
+        <div id="ongoingDaysGrid" style="display: grid; grid-template-columns: 80px repeat(2, 1fr); gap: 6px; margin-top: 6px;"></div>
+      </div>
+      <div class="modal-actions">
+        <button id="ongoingFormCancel">Cancel</button>
+        <button id="ongoingFormSave" class="primary">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Auto-fill rolling cohorts modal -->
+  <div class="modal-overlay" id="autoFillModal">
+    <div class="modal" style="min-width: 540px;">
+      <h3>Auto-fill rolling cohorts</h3>
+      <p style="font-size: 12px; color: var(--ink-soft); margin-bottom: 16px; line-height: 1.5;">
+        Generates a continuous flow of cohorts in selected timeslots. Each new cohort starts one admin week after the previous one ends in the same slot. Existing cohorts are preserved; new ones are added on top, even if they create conflicts.
+      </p>
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Timeslots to fill</label>
+        <div id="autoFillSlots" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 6px;"></div>
+      </div>
+      <div class="form-row cols-2">
+        <div class="form-field">
+          <label>Start cohort number from</label>
+          <input type="number" id="autoFillStartNum" min="1" />
+        </div>
+        <div class="form-field">
+          <label>Fill until (end date)</label>
+          <input type="date" id="autoFillEndDate" />
+        </div>
+      </div>
+      <div class="form-field" style="margin-bottom: 14px;">
+        <label>Default facilitator for new cohorts</label>
+        <select id="autoFillFacilitator">
+          <option value="neil">Neil (both days)</option>
+          <option value="iain">Iain (both days)</option>
+        </select>
+      </div>
+      <div class="form-field">
+        <label>Default participants</label>
+        <input type="number" id="autoFillParticipants" min="1" max="20" value="6" />
+      </div>
+      <div class="form-field" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--rule-soft);">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; text-transform: none; letter-spacing: 0;">
+          <input type="checkbox" id="autoFillIncludeWF" checked style="cursor: pointer;" />
+          <span style="font-family: 'Inter', sans-serif; font-size: 13px; color: var(--ink);">Also create Work Foundations (Wed/Thu/Fri AM &amp; PM, Iain)</span>
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button id="autoFillCancel">Cancel</button>
+        <button id="autoFillRun" class="primary">Generate</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline panel -->
+  <section class="panel">
+    <div class="panel-header no-toggle">
+      <h2>Cohort timeline</h2>
+      <div class="panel-meta" id="timelineMeta"></div>
+    </div>
+    <div class="panel-body" style="padding: 12px 20px 20px;">
+      <div class="timeline-grid" id="timelineGrid">
+        <div class="timeline-inner" id="timelineInner"></div>
+      </div>
+      <div class="week-selector">
+        <label>Week of</label>
+        <div class="week-display" id="weekDisplay">—</div>
+        <input type="range" id="weekSlider" min="0" max="34" value="0">
+      </div>
+    </div>
+  </section>
+
+  <!-- Workload editor -->
+  <section class="editor">
+    <aside class="palette">
+      <h3>Add activities</h3>
+      <div class="palette-items">
+        <div class="palette-item training" draggable="true" data-type="training">Training (manual)</div>
+        <div class="palette-item wf" draggable="true" data-type="wf">Work Foundations</div>
+        <div class="palette-item continuation" draggable="true" data-type="continuation">QA Open Studio</div>
+        <div class="palette-item ace" draggable="true" data-type="ace">ACE</div>
+      </div>
+      <div class="palette-hint">
+        Drag onto a slot, or click any slot to add. Activities from cohorts &amp; ongoing items auto-populate the week. Override here for one-off changes.
+      </div>
+    </aside>
+
+    <div class="schedule">
+      <div class="schedule-header">
+        <h3 id="scheduleTitle">Week of —</h3>
+        <div class="schedule-totals" id="scheduleTotals"></div>
+      </div>
+      <div class="grid" id="grid"></div>
+    </div>
+  </section>
+
+  <!-- Summary panel -->
+  <section class="summary" id="summary"></section>
+
+  <footer>
+    Persistent local storage · Scenarios saved per browser
+  </footer>
+
+</div>
+
+<!-- Slot activity modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modalTitle">Add activity</h3>
+    <div class="modal-field">
+      <label>Activity</label>
+      <select id="activityTypeSelect">
+        <option value="training">Training</option>
+        <option value="wf">Work Foundations</option>
+        <option value="continuation">QA Open Studio</option>
+        <option value="ace">ACE</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>Detail (cohort, notes)</label>
+      <input type="text" id="cohortInput" placeholder="e.g. Cohort 11, notes" />
+    </div>
+    <div class="modal-actions">
+      <button id="modalCancel">Cancel</button>
+      <button id="modalSave" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Save As modal -->
+<div class="modal-overlay" id="saveAsModal">
+  <div class="modal">
+    <h3>Save scenario as</h3>
+    <div class="modal-field">
+      <label>Scenario name</label>
+      <input type="text" id="saveAsInput" placeholder="e.g. Proposed July onwards" />
+    </div>
+    <div class="modal-actions">
+      <button id="saveAsCancel">Cancel</button>
+      <button id="saveAsConfirm" class="primary">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+const SA_HOLIDAYS = [
+  { date: "2026-01-01", name: "New Year's Day" },
+  { date: "2026-01-26", name: "Australia Day" },
+  { date: "2026-03-09", name: "Adelaide Cup" },
+  { date: "2026-04-03", name: "Good Friday" },
+  { date: "2026-04-04", name: "Easter Saturday" },
+  { date: "2026-04-06", name: "Easter Monday" },
+  { date: "2026-04-25", name: "ANZAC Day" },
+  { date: "2026-06-08", name: "King's Birthday" },
+  { date: "2026-10-05", name: "Labour Day" },
+  { date: "2026-12-25", name: "Christmas Day" },
+  { date: "2026-12-26", name: "Proclamation Day" },
+  { date: "2026-12-28", name: "Proclamation Day (additional)" },
+  { date: "2027-01-01", name: "New Year's Day" },
+  { date: "2027-01-26", name: "Australia Day" },
+  { date: "2027-03-08", name: "Adelaide Cup" },
+  { date: "2027-03-26", name: "Good Friday" },
+  { date: "2027-03-27", name: "Easter Saturday" },
+  { date: "2027-03-29", name: "Easter Monday" },
+  { date: "2027-04-25", name: "ANZAC Day" },
+  { date: "2027-06-14", name: "King's Birthday" },
+  { date: "2027-10-04", name: "Labour Day" },
+  { date: "2027-12-25", name: "Christmas Day" },
+  { date: "2027-12-27", name: "Christmas Day (additional)" },
+  { date: "2027-12-28", name: "Proclamation Day (additional)" },
+];
+
+// Organisational closure periods (Christmas / New Year shutdown).
+// Defined as inclusive ranges. All weekdays in the range count as closure days.
+// 2025/26: closed from 19 Dec PM, re-opens 12 Jan AM → effectively 19 Dec → 11 Jan inclusive.
+// 2026/27: projected (last Friday in Dec to first Monday back). Adjust when confirmed.
+const ORG_CLOSURES = [
+  { start: "2025-12-19", end: "2026-01-11", name: "Christmas closure" },
+  { start: "2026-12-18", end: "2027-01-11", name: "Christmas closure (projected)" },
+];
+
+// Expand closure ranges into individual date entries that look like holidays
+function expandClosures() {
+  const dates = [];
+  for (const closure of ORG_CLOSURES) {
+    const start = parseDate(closure.start);
+    const end = parseDate(closure.end);
+    let cur = new Date(start);
+    while (cur <= end) {
+      // Only weekdays (Mon-Fri)
+      const dow = cur.getDay();
+      if (dow !== 0 && dow !== 6) {
+        dates.push({ date: formatDateISO(cur), name: closure.name });
+      }
+      cur = addDays(cur, 1);
+    }
+  }
+  return dates;
+}
+
+const MODULES = [
+  { id: 1, name: "Game Playtester", short: "Playtester", color: "var(--m1)", weeks: 4 },
+  { id: 2, name: "Game Bug Tester", short: "Bug Tester", color: "var(--m2)", weeks: 4 },
+  { id: 3, name: "Lead Gameplay Tester", short: "Lead Gameplay", color: "var(--m3)", weeks: 4 },
+  { id: 4, name: "Test Case Writer", short: "Test Case", color: "var(--m4)", weeks: 4 },
+  { id: 5, name: "Test Plan Writer", short: "Test Plan", color: "var(--m5)", weeks: 4 },
+];
+
+const TIMESLOTS = [
+  { id: "mw-am", label: "Mon/Wed Morning", days: ["Mon", "Wed"], session: "am", time: "9:30am – 12:30pm", short: "Mon/Wed AM" },
+  { id: "mw-pm", label: "Mon/Wed Afternoon", days: ["Mon", "Wed"], session: "pm", time: "1:30pm – 4:30pm", short: "Mon/Wed PM" },
+  { id: "tt-am", label: "Tue/Thu Morning", days: ["Tue", "Thu"], session: "am", time: "9:30am – 12:30pm", short: "Tue/Thu AM" },
+  { id: "tt-pm", label: "Tue/Thu Afternoon", days: ["Tue", "Thu"], session: "pm", time: "1:30pm – 4:30pm", short: "Tue/Thu PM" },
+  { id: "wf-am", label: "Wed/Fri Morning", days: ["Wed", "Fri"], session: "am", time: "9:30am – 12:30pm", short: "Wed/Fri AM" },
+  { id: "wf-pm", label: "Wed/Fri Afternoon", days: ["Wed", "Fri"], session: "pm", time: "1:30pm – 4:30pm", short: "Wed/Fri PM" },
+];
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+const SESSIONS = ['am', 'pm'];
+const PEOPLE = ['iain', 'neil'];
+const DAY_INDEX = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4 };
+
+const ACTIVITY_LABELS = {
+  training: 'Training',
+  wf: 'Work Foundations',
+  continuation: 'QA Open Studio',
+  ace: 'ACE',
+};
+
+// Timeline range
+const TIMELINE_START = new Date(2026, 4, 18); // 18 May 2026 (Monday)
+const WEEKS_BASE = 33; // minimum horizon
+
+// Computes the timeline horizon — at least WEEKS_BASE, extended to cover all cohorts + buffer
+function getTimelineHorizon() {
+  const scn = currentScn();
+  let max = WEEKS_BASE;
+  if (scn) {
+    scn.cohorts.forEach(c => {
+      const last = c.sessions[c.sessions.length - 1];
+      if (!last) return;
+      const w = weekIndexFromDate(parseDate(last.dateStr));
+      if (w + 2 > max) max = w + 2; // +2 buffer (cohort end + admin + 1)
+    });
+    scn.ongoing.forEach(o => {
+      if (!o.endDate) return;
+      const w = weekIndexFromDate(parseDate(o.endDate));
+      if (w + 1 > max) max = w + 1;
+    });
+  }
+  return max;
+}
+
+// ============================================================================
+// DATE HELPERS
+// ============================================================================
+
+let _closureLookup = null;
+function isHoliday(dateStr) {
+  const sa = SA_HOLIDAYS.find(h => h.date === dateStr);
+  if (sa) return sa;
+  if (!_closureLookup) {
+    _closureLookup = {};
+    expandClosures().forEach(c => { _closureLookup[c.date] = c; });
+  }
+  return _closureLookup[dateStr] || undefined;
+}
+
+function formatDateISO(d) {
+  // Local-time YYYY-MM-DD (avoids timezone shifts from toISOString)
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function addDays(date, days) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
+}
+
+function parseDate(s) {
+  // Parse YYYY-MM-DD as local date
+  const [y, m, d] = s.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function getNextWeekday(startDate, targetDay) {
+  const start = parseDate(startDate);
+  const startDow = (start.getDay() + 6) % 7; // Mon=0, Sun=6
+  let diff = DAY_INDEX[targetDay] - startDow;
+  if (diff < 0) diff += 7;
+  return addDays(start, diff);
+}
+
+function getMondayOf(date) {
+  const d = new Date(date);
+  const dow = (d.getDay() + 6) % 7;
+  return addDays(d, -dow);
+}
+
+function weekIndexFromDate(date) {
+  // Returns week index relative to TIMELINE_START
+  const mon = getMondayOf(date);
+  const diffMs = mon - TIMELINE_START;
+  return Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+function weekStartDate(weekIdx) {
+  return addDays(TIMELINE_START, weekIdx * 7);
+}
+
+function formatWeekLabel(weekIdx) {
+  return weekStartDate(weekIdx).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// ============================================================================
+// COHORT SCHEDULE GENERATION
+// ============================================================================
+
+function generateSchedule(startDate, timeslotId) {
+  const timeslot = TIMESLOTS.find(t => t.id === timeslotId);
+  if (!timeslot) return [];
+
+  const sessions = [];
+  let sessionCount = 0;
+  const totalSessions = 40;
+
+  const [day1, day2] = timeslot.days;
+  const cursor1 = getNextWeekday(startDate, day1);
+  const cursor2 = getNextWeekday(startDate, day2);
+
+  const allDates = [];
+  const weeksNeeded = 40; // increased to comfortably accommodate Christmas closures
+  for (let w = 0; w < weeksNeeded; w++) {
+    allDates.push({ date: addDays(cursor1, w * 7), day: day1 });
+    allDates.push({ date: addDays(cursor2, w * 7), day: day2 });
+  }
+  allDates.sort((a, b) => a.date - b.date);
+
+  let moduleIndex = 0;
+  let weekInModule = 1;
+  let sessionsInWeek = 0;
+  let moduleSessionNum = 0;
+  let holidayCount = 0;
+  const holidayDates = [];
+
+  for (const slot of allDates) {
+    if (sessionCount >= totalSessions) break;
+
+    const dateStr = formatDateISO(slot.date);
+    const holiday = isHoliday(dateStr);
+    const mod = MODULES[moduleIndex];
+
+    sessions.push({
+      dateStr,
+      day: slot.day,
+      session: timeslot.session,
+      moduleId: mod.id,
+      moduleName: mod.name,
+      moduleIndex: moduleIndex + 1,
+      weekInModule,
+      sessionNumber: sessionCount + 1,
+      moduleSessionNumber: holiday ? null : moduleSessionNum + 1,
+      isHoliday: !!holiday,
+      holidayName: holiday?.name || null,
+      isMakeup: false, // will be flagged retroactively after the count is known
+    });
+
+    if (holiday) {
+      holidayCount++;
+      holidayDates.push({ date: dateStr, name: holiday.name });
+    } else {
+      sessionCount++;
+      sessionsInWeek++;
+      moduleSessionNum++;
+      if (sessionsInWeek >= 2) {
+        sessionsInWeek = 0;
+        weekInModule++;
+        if (weekInModule > mod.weeks) {
+          weekInModule = 1;
+          moduleIndex++;
+          moduleSessionNum = 0;
+        }
+      }
+    }
+  }
+
+  // Flag the last N real sessions as makeup, where N = number of holiday-affected sessions
+  if (holidayCount > 0) {
+    const realSessionIndices = [];
+    sessions.forEach((s, i) => { if (!s.isHoliday) realSessionIndices.push(i); });
+    const makeupIndices = realSessionIndices.slice(-holidayCount);
+    makeupIndices.forEach((i, k) => {
+      sessions[i].isMakeup = true;
+      // Pair each makeup with the holiday it covers, in order
+      if (holidayDates[k]) {
+        sessions[i].makeupFor = holidayDates[k];
+      }
+    });
+  }
+
+  return sessions;
+}
+
+// ============================================================================
+// STATE
+// ============================================================================
+
+let state = {
+  currentScenario: 'Current state',
+  currentWeek: 0,
+  scenarios: {},
+};
+
+function defaultScenario() {
+  return {
+    cohorts: [],
+    ongoing: [],
+    overrides: {}, // weekIdx -> { person|day|session => activity or null }
+  };
+}
+
+const SCHEDULE_VERSION = 3; // bump when holiday/closure data or schedule logic changes
+
+function loadState() {
+  const saved = localStorage.getItem('workload-planner-v2');
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      state = Object.assign(state, parsed);
+    } catch (e) {
+      try { console && console.warn && console.warn('Failed to load state'); } catch (_) {}
+    }
+  }
+
+  if (!state.scenarios['Current state']) {
+    state.scenarios['Current state'] = defaultScenario();
+  }
+
+  // Ensure scenarios have required fields
+  Object.values(state.scenarios).forEach(scn => {
+    if (!scn.cohorts) scn.cohorts = [];
+    if (!scn.ongoing) scn.ongoing = [];
+    if (!scn.overrides) scn.overrides = {};
+  });
+
+  if (!state.currentScenario || !state.scenarios[state.currentScenario]) {
+    state.currentScenario = 'Current state';
+  }
+
+  // Regenerate cohort sessions if the schedule logic has changed since data was saved
+  if (state.scheduleVersion !== SCHEDULE_VERSION) {
+    Object.values(state.scenarios).forEach(scn => {
+      scn.cohorts.forEach(c => {
+        if (c.startDate && c.timeslotId) {
+          c.sessions = generateSchedule(c.startDate, c.timeslotId);
+        }
+      });
+    });
+    state.scheduleVersion = SCHEDULE_VERSION;
+    saveState();
+  }
+}
+
+function saveState() {
+  localStorage.setItem('workload-planner-v2', JSON.stringify(state));
+}
+
+function currentScn() {
+  return state.scenarios[state.currentScenario];
+}
+
+// ============================================================================
+// DERIVING WEEK ACTIVITIES
+// ============================================================================
+
+function deriveWeekActivities(weekIdx) {
+  const scn = currentScn();
+  if (!scn) return [];
+
+  const monday = weekStartDate(weekIdx);
+  const weekDates = {};
+  DAYS.forEach((d, i) => {
+    weekDates[d] = formatDateISO(addDays(monday, i));
+  });
+
+  const activities = [];
+
+  // Add cohort sessions for this week
+  scn.cohorts.forEach(cohort => {
+    cohort.sessions.forEach(s => {
+      // Match by date OR by day-of-week within this week
+      if (s.dateStr === weekDates[s.day]) {
+        const mod = MODULES.find(m => m.id === s.moduleId);
+        // Per-day facilitator with fallback for old data
+        const facilitator = (cohort.facilitators && cohort.facilitators[s.day]) || cohort.facilitator || 'iain';
+        activities.push({
+          person: facilitator,
+          day: s.day,
+          session: s.session,
+          type: s.isHoliday ? 'holiday' : 'training',
+          cohort: `Cohort ${cohort.number}`,
+          cohortId: cohort.id,
+          moduleId: s.moduleId,
+          moduleName: mod ? mod.short : '',
+          isHoliday: s.isHoliday,
+          holidayName: s.holidayName,
+          isMakeup: !!s.isMakeup,
+          makeupFor: s.makeupFor || null,
+          source: 'cohort',
+        });
+      }
+    });
+  });
+
+  // Add ongoing activities
+  scn.ongoing.forEach(ong => {
+    const startMon = getMondayOf(parseDate(ong.startDate));
+    const startWeekIdx = weekIndexFromDate(startMon);
+    let endWeekIdx = Infinity;
+    if (ong.endDate) {
+      endWeekIdx = weekIndexFromDate(parseDate(ong.endDate));
+    }
+    if (weekIdx >= startWeekIdx && weekIdx <= endWeekIdx) {
+      ong.slots.forEach(slot => {
+        // Check if this specific day is a holiday
+        const dateStr = weekDates[slot.day];
+        const holiday = isHoliday(dateStr);
+        activities.push({
+          person: ong.facilitator,
+          day: slot.day,
+          session: slot.session,
+          type: ong.type,
+          cohort: ong.name,
+          ongoingId: ong.id,
+          isHoliday: !!holiday,
+          holidayName: holiday?.name || null,
+          source: 'ongoing',
+        });
+      });
+    }
+  });
+
+  return activities;
+}
+
+function getWeekActivities(weekIdx) {
+  const derived = deriveWeekActivities(weekIdx);
+  const scn = currentScn();
+  const override = scn && scn.overrides[weekIdx];
+
+  if (!override) return derived;
+
+  // Apply override: it's a list of explicit activities that REPLACE the derived set
+  // (if a week has any override, we treat the override as the full week)
+  if (Array.isArray(override)) return override;
+
+  return derived;
+}
+
+function hasOverride(weekIdx) {
+  const scn = currentScn();
+  return scn && !!scn.overrides[weekIdx];
+}
+
+function materializeOverride(weekIdx) {
+  const scn = currentScn();
+  if (!scn.overrides[weekIdx]) {
+    scn.overrides[weekIdx] = structuredClone(deriveWeekActivities(weekIdx));
+  }
+  return scn.overrides[weekIdx];
+}
+
+function getActivitiesAt(weekIdx, person, day, session) {
+  return getWeekActivities(weekIdx).filter(a =>
+    a.person === person && a.day === day && a.session === session
+  );
+}
+
+function addActivity(weekIdx, activity) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts.push(activity);
+  currentScn().overrides[weekIdx] = acts;
+  saveState();
+}
+
+function removeActivity(weekIdx, idx) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts.splice(idx, 1);
+  currentScn().overrides[weekIdx] = acts;
+  saveState();
+}
+
+function updateActivity(weekIdx, idx, newData) {
+  const acts = structuredClone(materializeOverride(weekIdx));
+  acts[idx] = Object.assign(acts[idx], newData);
+  currentScn().overrides[weekIdx] = acts;
+  saveState();
+}
+
+// ============================================================================
+// HOUR CALCULATIONS
+// ============================================================================
+
+function getDeliveryHours(weekIdx, person) {
+  return getWeekActivities(weekIdx)
+    .filter(a => a.person === person && !a.isHoliday)
+    .length * 3; // 3 hours per session
+}
+
+function getSessionCount(weekIdx, person) {
+  return getWeekActivities(weekIdx).filter(a => a.person === person && !a.isHoliday).length;
+}
+
+function getDeliveryHoursByType(weekIdx, person, type) {
+  return getWeekActivities(weekIdx)
+    .filter(a => a.person === person && a.type === type && !a.isHoliday)
+    .length * 3;
+}
+
+function getActiveCohortsForWeek(weekIdx) {
+  const scn = currentScn();
+  if (!scn) return [];
+  return scn.cohorts.filter(c => {
+    const startWeek = weekIndexFromDate(parseDate(c.startDate));
+    const lastSession = c.sessions[c.sessions.length - 1];
+    if (!lastSession) return false;
+    const endWeek = weekIndexFromDate(parseDate(lastSession.dateStr));
+    return weekIdx >= startWeek && weekIdx <= endWeek;
+  });
+}
+
+function getActiveOngoingForWeek(weekIdx) {
+  const scn = currentScn();
+  if (!scn) return [];
+  return scn.ongoing.filter(ong => {
+    const startWeekIdx = weekIndexFromDate(parseDate(ong.startDate));
+    let endWeekIdx = Infinity;
+    if (ong.endDate) endWeekIdx = weekIndexFromDate(parseDate(ong.endDate));
+    return weekIdx >= startWeekIdx && weekIdx <= endWeekIdx;
+  });
+}
+
+// ============================================================================
+// RENDER: MAIN
+// ============================================================================
+
+function render() {
+  renderScenarios();
+  renderCohortList();
+  renderModuleLegend();
+  renderHolidayClashes();
+  renderTimeline();
+  renderWeekDisplay();
+  renderGrid();
+  renderTotals();
+  renderSummary();
+  renderTimelineMeta();
+}
+
+function renderScenarios() {
+  const sel = document.getElementById('scenarioSelect');
+  const label = sel.previousElementSibling;
+  const deleteBtn = document.getElementById('deleteBtn');
+  const count = Object.keys(state.scenarios).length;
+
+  sel.innerHTML = '';
+  Object.keys(state.scenarios).forEach(name => {
+    const opt = document.createElement('option');
+    opt.value = name;
+    opt.textContent = name;
+    if (name === state.currentScenario) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  if (count <= 1) {
+    sel.style.display = 'none';
+    if (label && label.tagName === 'LABEL') label.style.display = 'none';
+    deleteBtn.style.display = 'none';
+  } else {
+    sel.style.display = '';
+    if (label && label.tagName === 'LABEL') label.style.display = '';
+    deleteBtn.style.display = '';
+  }
+}
+
+function renderModuleLegend() {
+  const el = document.getElementById('moduleLegend');
+  el.innerHTML = '';
+  MODULES.forEach(m => {
+    const chip = document.createElement('div');
+    chip.className = 'module-chip';
+    chip.innerHTML = `<span class="dot" style="background: ${m.color}"></span>M${m.id}: ${m.name}`;
+    el.appendChild(chip);
+  });
+}
+
+function renderCohortList() {
+  const el = document.getElementById('cohortList');
+  const scn = currentScn();
+  el.innerHTML = '';
+
+  const meta = document.getElementById('cohortPanelMeta');
+  const totalCohorts = scn.cohorts.length;
+  const totalOngoing = scn.ongoing.length;
+  meta.textContent = `${totalCohorts} training cohort${totalCohorts !== 1 ? 's' : ''} · ${totalOngoing} ongoing activit${totalOngoing !== 1 ? 'ies' : 'y'}`;
+
+  if (totalCohorts === 0 && totalOngoing === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'no-cohorts';
+    empty.textContent = 'No cohorts or ongoing activities yet. Add some to get started.';
+    el.appendChild(empty);
+    return;
+  }
+
+  // Detect conflicts between cohort pairs (shared day/session within overlapping date range)
+  const conflictsByCohortId = {};
+  for (let i = 0; i < scn.cohorts.length; i++) {
+    for (let j = i + 1; j < scn.cohorts.length; j++) {
+      const a = scn.cohorts[i];
+      const b = scn.cohorts[j];
+      const tsA = TIMESLOTS.find(t => t.id === a.timeslotId);
+      const tsB = TIMESLOTS.find(t => t.id === b.timeslotId);
+      if (!tsA || !tsB) continue;
+      if (tsA.session !== tsB.session) continue;
+      const sharedDays = tsA.days.filter(d => tsB.days.includes(d));
+      if (sharedDays.length === 0) continue;
+      // Time overlap
+      const aLast = a.sessions[a.sessions.length - 1];
+      const bLast = b.sessions[b.sessions.length - 1];
+      if (!aLast || !bLast) continue;
+      const aStart = parseDate(a.startDate);
+      const aEnd = parseDate(aLast.dateStr);
+      const bStart = parseDate(b.startDate);
+      const bEnd = parseDate(bLast.dateStr);
+      if (aEnd < bStart || bEnd < aStart) continue;
+      // Conflict found
+      if (!conflictsByCohortId[a.id]) conflictsByCohortId[a.id] = [];
+      if (!conflictsByCohortId[b.id]) conflictsByCohortId[b.id] = [];
+      conflictsByCohortId[a.id].push({ otherId: b.id, otherNumber: b.number, sharedDays, session: tsA.session });
+      conflictsByCohortId[b.id].push({ otherId: a.id, otherNumber: a.number, sharedDays, session: tsA.session });
+    }
+  }
+
+  // Cohorts first — sorted by start date
+  const sortedCohortsForList = [...scn.cohorts].sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+  sortedCohortsForList.forEach(cohort => {
+    const ts = TIMESLOTS.find(t => t.id === cohort.timeslotId);
+    const startDate = parseDate(cohort.startDate);
+    const lastSession = cohort.sessions[cohort.sessions.length - 1];
+    const endDate = lastSession ? parseDate(lastSession.dateStr) : null;
+    const holidayClashes = cohort.sessions.filter(s => s.isHoliday);
+    const uniqueHolidayDays = new Set(holidayClashes.map(s => s.dateStr)).size;
+    const conflicts = conflictsByCohortId[cohort.id] || [];
+
+    // Build facilitator display: e.g. "Tue: Iain · Thu: Neil" or "Iain" if both same
+    let facilitatorDisplay = '';
+    if (ts) {
+      const facs = ts.days.map(day => {
+        const f = (cohort.facilitators && cohort.facilitators[day]) || cohort.facilitator || 'iain';
+        return { day, name: f === 'iain' ? 'Iain' : 'Neil' };
+      });
+      const unique = [...new Set(facs.map(f => f.name))];
+      if (unique.length === 1) {
+        facilitatorDisplay = unique[0];
+      } else {
+        facilitatorDisplay = facs.map(f => `${f.day}: ${f.name}`).join(' · ');
+      }
+    }
+
+    // Compose warning column
+    let warnings = '';
+    if (conflicts.length > 0) {
+      const conflictText = conflicts.map(c => `Cohort ${c.otherNumber} (${c.sharedDays.join('/')})`).join(', ');
+      warnings += `<div style="color: var(--warn); font-weight: 600;">⚠ Clashes with ${conflictText}</div>`;
+    }
+    if (uniqueHolidayDays > 0) {
+      warnings += `<div style="color: var(--warn);">${uniqueHolidayDays} day${uniqueHolidayDays !== 1 ? 's' : ''} affected by holidays</div>`;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'cohort-row training';
+    if (conflicts.length > 0) row.style.borderLeftColor = 'var(--warn)';
+    row.innerHTML = `
+      <div class="cohort-name">Cohort ${cohort.number}</div>
+      <div>
+        <div class="cohort-detail">${ts ? ts.short : ''} · ${facilitatorDisplay}</div>
+        <div class="cohort-stat">
+          <span class="value">${startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
+          →
+          <span class="value">${endDate ? endDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}</span>
+        </div>
+      </div>
+      <div class="cohort-stat">Participants <span class="value">${cohort.participants}</span></div>
+      <div class="cohort-stat">${warnings}</div>
+      <div class="cohort-actions">
+        <button class="small" data-action="edit-cohort" data-id="${cohort.id}">Edit</button>
+        <button class="small warn" data-action="delete-cohort" data-id="${cohort.id}">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+
+  // Ongoing activities
+  scn.ongoing.forEach(ong => {
+    const startDate = parseDate(ong.startDate);
+    const endDate = ong.endDate ? parseDate(ong.endDate) : null;
+    const slotDesc = ong.slots.map(s => `${s.day} ${s.session.toUpperCase()}`).join(', ');
+
+    const row = document.createElement('div');
+    row.className = 'cohort-row ' + ong.type;
+    row.innerHTML = `
+      <div class="cohort-name">${ong.name}</div>
+      <div>
+        <div class="cohort-detail">${slotDesc} · ${ong.facilitator === 'iain' ? 'Iain' : 'Neil'}</div>
+        <div class="cohort-stat">
+          <span class="value">${startDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
+          →
+          <span class="value">${endDate ? endDate.toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Ongoing'}</span>
+        </div>
+      </div>
+      <div class="cohort-stat">${ACTIVITY_LABELS[ong.type] || ong.type}</div>
+      <div class="cohort-stat"></div>
+      <div class="cohort-actions">
+        <button class="small" data-action="edit-ongoing" data-id="${ong.id}">Edit</button>
+        <button class="small warn" data-action="delete-ongoing" data-id="${ong.id}">Delete</button>
+      </div>
+    `;
+    el.appendChild(row);
+  });
+
+  // Bind action buttons
+  el.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const action = btn.dataset.action;
+      const id = btn.dataset.id;
+      if (action === 'delete-cohort') deleteCohort(id);
+      else if (action === 'edit-cohort') editCohort(id);
+      else if (action === 'delete-ongoing') deleteOngoing(id);
+      else if (action === 'edit-ongoing') editOngoing(id);
+    });
+  });
+}
+
+function renderHolidayClashes() {
+  const el = document.getElementById('holidayClashes');
+  const scn = currentScn();
+  el.innerHTML = '';
+
+  const clashes = [];
+  scn.cohorts.forEach(cohort => {
+    cohort.sessions.filter(s => s.isHoliday).forEach(s => {
+      clashes.push({ cohortName: `Cohort ${cohort.number}`, ...s });
+    });
+  });
+
+  if (clashes.length === 0) return;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'holiday-clashes';
+  wrap.innerHTML = `<h4>⚠ Holiday clashes — extra makeup sessions automatically added at the end of each affected cohort</h4>`;
+
+  clashes.forEach(c => {
+    const item = document.createElement('div');
+    item.className = 'holiday-clash-item';
+    const d = parseDate(c.dateStr);
+    item.innerHTML = `
+      <span class="date">${d.toLocaleDateString('en-AU', { day: 'numeric', month: 'short' })}</span>
+      <span style="font-weight: 600;">${c.cohortName}</span>
+      <span style="color: var(--ink-soft); font-size: 11px;">${c.moduleName}</span>
+      <span style="margin-left: auto; color: var(--warn); font-size: 11px;">${c.holidayName}</span>
+    `;
+    wrap.appendChild(item);
+  });
+
+  el.appendChild(wrap);
+}
+
+function renderTimeline() {
+  const inner = document.getElementById('timelineInner');
+  inner.innerHTML = '';
+  const WEEKS_TOTAL = getTimelineHorizon();
+  const totalWeeks = WEEKS_TOTAL + 1;
+  const weekWidth = 100 / totalWeeks;
+
+  // Month markers
+  const monthsSeen = new Set();
+  for (let i = 0; i < totalWeeks; i++) {
+    const d = weekStartDate(i);
+    const monthKey = d.getFullYear() + '-' + d.getMonth();
+    if (!monthsSeen.has(monthKey)) {
+      monthsSeen.add(monthKey);
+      const m = document.createElement('div');
+      m.className = 'timeline-month';
+      m.style.left = (i * weekWidth) + '%';
+      m.style.width = weekWidth + '%';
+      m.textContent = d.toLocaleDateString('en-AU', { month: 'short' });
+      inner.appendChild(m);
+    }
+  }
+
+  const scn = currentScn();
+  let rowIdx = 0;
+
+  // Sort cohorts by start date so timeline rows appear chronologically
+  const sortedCohorts = [...scn.cohorts].sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+
+  // Render cohort bars
+  sortedCohorts.forEach(cohort => {
+    const startWeek = weekIndexFromDate(parseDate(cohort.startDate));
+    const lastSession = cohort.sessions[cohort.sessions.length - 1];
+    if (!lastSession) return;
+    const endWeek = weekIndexFromDate(parseDate(lastSession.dateStr));
+
+    if (endWeek < 0 || startWeek > WEEKS_TOTAL) return;
+
+    const visibleStart = Math.max(0, startWeek);
+    const visibleEnd = Math.min(WEEKS_TOTAL, endWeek);
+    const left = visibleStart * weekWidth;
+    const width = (visibleEnd - visibleStart + 1) * weekWidth;
+
+    const bar = document.createElement('div');
+    bar.className = 'cohort-bar training';
+    bar.style.left = left + '%';
+    bar.style.width = width + '%';
+    bar.style.top = (24 + rowIdx * 22) + 'px';
+    bar.textContent = `Cohort ${cohort.number}`;
+    bar.title = `Cohort ${cohort.number} · ${formatWeekLabel(startWeek)} → ${formatWeekLabel(endWeek)}`;
+    bar.addEventListener('click', e => {
+      e.stopPropagation();
+      state.currentWeek = startWeek;
+      saveState();
+      render();
+    });
+    inner.appendChild(bar);
+
+    // Admin week bar — one week immediately after the cohort ends
+    const adminWeek = endWeek + 1;
+    if (adminWeek <= WEEKS_TOTAL) {
+      const adminBar = document.createElement('div');
+      adminBar.className = 'cohort-bar admin-week';
+      adminBar.style.left = (adminWeek * weekWidth) + '%';
+      adminBar.style.width = weekWidth + '%';
+      adminBar.style.top = (24 + rowIdx * 22) + 'px';
+      adminBar.textContent = 'Admin';
+      adminBar.title = `Admin week after Cohort ${cohort.number} · ${formatWeekLabel(adminWeek)}`;
+      adminBar.addEventListener('click', e => {
+        e.stopPropagation();
+        state.currentWeek = adminWeek;
+        saveState();
+        render();
+      });
+      inner.appendChild(adminBar);
+    }
+
+    rowIdx++;
+  });
+
+  // Render ongoing bars
+  scn.ongoing.forEach(ong => {
+    const startWeek = weekIndexFromDate(parseDate(ong.startDate));
+    let endWeek = WEEKS_TOTAL;
+    if (ong.endDate) endWeek = weekIndexFromDate(parseDate(ong.endDate));
+
+    if (endWeek < 0 || startWeek > WEEKS_TOTAL) return;
+
+    const visibleStart = Math.max(0, startWeek);
+    const visibleEnd = Math.min(WEEKS_TOTAL, endWeek);
+    const left = visibleStart * weekWidth;
+    const width = (visibleEnd - visibleStart + 1) * weekWidth;
+
+    const bar = document.createElement('div');
+    bar.className = 'cohort-bar ' + ong.type;
+    bar.style.left = left + '%';
+    bar.style.width = width + '%';
+    bar.style.top = (24 + rowIdx * 22) + 'px';
+    bar.textContent = ong.name;
+    bar.title = `${ong.name} · ${formatWeekLabel(startWeek)} → ${ong.endDate ? formatWeekLabel(endWeek) : 'ongoing'}`;
+    bar.addEventListener('click', e => {
+      e.stopPropagation();
+      state.currentWeek = startWeek;
+      saveState();
+      render();
+    });
+    inner.appendChild(bar);
+    rowIdx++;
+  });
+
+  // Week cursor
+  const cursor = document.createElement('div');
+  cursor.className = 'timeline-week-cursor';
+  cursor.style.left = (state.currentWeek * weekWidth + weekWidth / 2) + '%';
+  inner.appendChild(cursor);
+
+  // Adjust timeline height based on rows
+  const minHeight = Math.max(200, 24 + rowIdx * 22 + 16);
+  document.getElementById('timelineGrid').style.height = minHeight + 'px';
+
+  // Slider
+  const slider = document.getElementById('weekSlider');
+  slider.max = WEEKS_TOTAL;
+  slider.value = state.currentWeek;
+}
+
+function renderTimelineMeta() {
+  const el = document.getElementById('timelineMeta');
+  const WEEKS_TOTAL = getTimelineHorizon();
+  const startStr = TIMELINE_START.toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+  const endStr = weekStartDate(WEEKS_TOTAL).toLocaleDateString('en-AU', { month: 'short', year: 'numeric' });
+  el.textContent = `${startStr} – ${endStr} · Click a week to view`;
+}
+
+function renderWeekDisplay() {
+  document.getElementById('weekDisplay').textContent = formatWeekLabel(state.currentWeek);
+
+  const titleEl = document.getElementById('scheduleTitle');
+  const isOverridden = hasOverride(state.currentWeek);
+
+  // Detect admin weeks: cohorts whose last session is in the week before the current one
+  const scn = currentScn();
+  const adminFor = [];
+  if (scn) {
+    scn.cohorts.forEach(c => {
+      const last = c.sessions[c.sessions.length - 1];
+      if (!last) return;
+      const lastWeekIdx = weekIndexFromDate(parseDate(last.dateStr));
+      if (lastWeekIdx + 1 === state.currentWeek) {
+        adminFor.push(c.number);
+      }
+    });
+  }
+
+  let badges = '';
+  if (isOverridden) {
+    badges += ' <span class="override-badge">edited</span>';
+  } else {
+    badges += ' <span class="derived-badge">auto from cohorts</span>';
+  }
+  if (adminFor.length > 0) {
+    const label = adminFor.length === 1
+      ? `admin week — Cohort ${adminFor[0]}`
+      : `admin week — Cohorts ${adminFor.join(', ')}`;
+    badges += ` <span class="admin-badge">${label}</span>`;
+  }
+
+  titleEl.innerHTML = 'Week of ' + formatWeekLabel(state.currentWeek) + badges;
+}
+
+function renderGrid() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+
+  const monday = weekStartDate(state.currentWeek);
+  const dayDates = {};
+  DAYS.forEach((d, i) => {
+    dayDates[d] = addDays(monday, i);
+  });
+
+  // Header row
+  const corner = document.createElement('div');
+  corner.className = 'grid-cell day-header';
+  grid.appendChild(corner);
+
+  DAYS.forEach(d => {
+    const date = dayDates[d];
+    const dateStr = formatDateISO(date);
+    const hol = isHoliday(dateStr);
+    const cell = document.createElement('div');
+    cell.className = 'grid-cell day-header' + (hol ? ' holiday-header' : '');
+    cell.innerHTML = d + '<div class="day-date">' + date.getDate() + ' ' + date.toLocaleDateString('en-AU', { month: 'short' }) + '</div>' + (hol ? '<div class="day-date">' + hol.name + '</div>' : '');
+    grid.appendChild(cell);
+  });
+
+  // Person rows
+  PEOPLE.forEach(person => {
+    SESSIONS.forEach((session, sIdx) => {
+      if (sIdx === 0) {
+        const label = document.createElement('div');
+        label.className = 'grid-cell person-label ' + person;
+        label.style.gridRow = 'span 2';
+        label.textContent = person.charAt(0).toUpperCase() + person.slice(1);
+        grid.appendChild(label);
+      }
+
+      DAYS.forEach(day => {
+        const dateStr = formatDateISO(dayDates[day]);
+        const hol = isHoliday(dateStr);
+
+        const cell = document.createElement('div');
+        cell.className = 'grid-cell lane-' + person;
+        if (hol) cell.classList.add('holiday-day');
+        if (person === 'iain' && session === 'pm') cell.classList.add('lane-divider');
+
+        const slot = document.createElement('div');
+        slot.className = 'slot';
+        slot.dataset.person = person;
+        slot.dataset.day = day;
+        slot.dataset.session = session;
+
+        const label = document.createElement('span');
+        label.className = 'slot-label';
+        label.textContent = session.toUpperCase();
+        slot.appendChild(label);
+
+        const activities = getActivitiesAt(state.currentWeek, person, day, session);
+        const allActs = getWeekActivities(state.currentWeek);
+
+        if (activities.length === 0) {
+          slot.classList.add('empty');
+          slot.addEventListener('click', () => openAddModal(person, day, session));
+        } else {
+          activities.forEach(act => {
+            const idx = allActs.indexOf(act);
+            const block = document.createElement('div');
+            block.className = 'activity-block ' + act.type;
+            if (act.isHoliday) block.classList.add('holiday');
+            if (act.isMakeup) block.classList.add('makeup');
+            if (act.moduleId) block.dataset.module = act.moduleId;
+
+            const name = document.createElement('div');
+            name.className = 'activity-name';
+            name.textContent = act.cohort || ACTIVITY_LABELS[act.type] || act.type;
+            block.appendChild(name);
+
+            if (act.moduleName) {
+              const m = document.createElement('div');
+              m.className = 'activity-module';
+              m.textContent = act.moduleName;
+              block.appendChild(m);
+            }
+
+            if (act.isHoliday) {
+              const hTag = document.createElement('div');
+              hTag.className = 'holiday-tag';
+              hTag.textContent = '⚠ ' + (act.holidayName || 'Holiday');
+              block.appendChild(hTag);
+            }
+
+            if (act.isMakeup) {
+              const mTag = document.createElement('div');
+              mTag.className = 'makeup-tag';
+              const reason = act.makeupFor ? ` (for ${act.makeupFor.name})` : '';
+              mTag.textContent = '↪ Makeup' + reason;
+              block.appendChild(mTag);
+            }
+
+            // Override-only items get a delete button
+            if (hasOverride(state.currentWeek)) {
+              const del = document.createElement('span');
+              del.className = 'activity-delete';
+              del.textContent = '×';
+              del.addEventListener('click', (e) => {
+                e.stopPropagation();
+                removeActivity(state.currentWeek, idx);
+                render();
+              });
+              block.appendChild(del);
+
+              block.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openEditModal(idx);
+              });
+            } else {
+              block.style.cursor = 'default';
+              block.title = 'Auto-derived from cohort/ongoing. Click a slot to add a manual override for this week.';
+            }
+
+            slot.appendChild(block);
+          });
+        }
+
+        slot.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          slot.classList.add('drop-target');
+        });
+        slot.addEventListener('dragleave', () => {
+          slot.classList.remove('drop-target');
+        });
+        slot.addEventListener('drop', (e) => {
+          e.preventDefault();
+          slot.classList.remove('drop-target');
+          const type = e.dataTransfer.getData('activity-type');
+          if (type) openAddModal(person, day, session, type);
+        });
+
+        cell.appendChild(slot);
+        grid.appendChild(cell);
+      });
+    });
+  });
+
+  applyOverloadFlags();
+}
+
+function applyOverloadFlags() {
+  PEOPLE.forEach(person => {
+    DAYS.forEach(day => {
+      SESSIONS.forEach(session => {
+        const acts = getActivitiesAt(state.currentWeek, person, day, session)
+          .filter(a => !a.isHoliday);
+        if (acts.length > 1) {
+          const slots = document.querySelectorAll(`.slot[data-person="${person}"][data-day="${day}"][data-session="${session}"]`);
+          slots.forEach(s => s.classList.add('overload'));
+        }
+      });
+    });
+  });
+}
+
+function renderTotals() {
+  const cont = document.getElementById('scheduleTotals');
+  const iainHours = getDeliveryHours(state.currentWeek, 'iain');
+  const neilHours = getDeliveryHours(state.currentWeek, 'neil');
+  const iainSessions = getSessionCount(state.currentWeek, 'iain');
+  const neilSessions = getSessionCount(state.currentWeek, 'neil');
+
+  const neilWarn = neilHours > 15 ? 'warn' : '';
+  const iainWarn = iainHours > 27 ? 'warn' : '';
+
+  cont.innerHTML = `
+    <div class="total"><span class="name">Iain</span><span class="value ${iainWarn}">${iainHours}h · ${iainSessions} sessions</span></div>
+    <div class="total"><span class="name">Neil</span><span class="value ${neilWarn}">${neilHours}h · ${neilSessions} sessions</span></div>
+  `;
+}
+
+function renderSummary() {
+  const sum = document.getElementById('summary');
+  const iainHours = getDeliveryHours(state.currentWeek, 'iain');
+  const neilHours = getDeliveryHours(state.currentWeek, 'neil');
+  const iainTraining = getDeliveryHoursByType(state.currentWeek, 'iain', 'training');
+  const iainWF = getDeliveryHoursByType(state.currentWeek, 'iain', 'wf');
+  const iainCont = getDeliveryHoursByType(state.currentWeek, 'iain', 'continuation');
+  const iainAce = getDeliveryHoursByType(state.currentWeek, 'iain', 'ace');
+  const neilTraining = getDeliveryHoursByType(state.currentWeek, 'neil', 'training');
+
+  const activeCohorts = getActiveCohortsForWeek(state.currentWeek);
+  const activeOngoing = getActiveOngoingForWeek(state.currentWeek);
+
+  const neilWarn = neilHours > 15;
+  const iainWarn = iainHours > 27;
+
+  // Empty slots for Iain (admin)
+  let iainAdmin = 0;
+  DAYS.forEach(d => {
+    SESSIONS.forEach(s => {
+      if (getActivitiesAt(state.currentWeek, 'iain', d, s).length === 0) iainAdmin++;
+    });
+  });
+
+  const allActive = [
+    ...activeCohorts.map(c => `Cohort ${c.number}`),
+    ...activeOngoing.map(o => o.name),
+  ];
+
+  // Count participants for the week (sum across active training cohorts)
+  const totalParticipants = activeCohorts.reduce((sum, c) => sum + c.participants, 0);
+
+  sum.innerHTML = `
+    <div class="summary-block">
+      <h4>Iain · Week total</h4>
+      <div class="stat ${iainWarn ? 'warn' : ''}">${iainHours}h</div>
+      <div class="detail">
+        ${iainTraining > 0 ? `Training: ${iainTraining}h<br>` : ''}
+        ${iainWF > 0 ? `Work Foundations: ${iainWF}h<br>` : ''}
+        ${iainCont > 0 ? `QA Open Studio: ${iainCont}h<br>` : ''}
+        ${iainAce > 0 ? `ACE: ${iainAce}h<br>` : ''}
+        Admin / open: ${iainAdmin} session blocks
+      </div>
+    </div>
+    <div class="summary-block">
+      <h4>Neil · Week total</h4>
+      <div class="stat ${neilWarn ? 'warn' : ''}">${neilHours}h</div>
+      <div class="detail">
+        Training delivery: ${neilTraining}h<br>
+        ${neilWarn ? '<strong style="color: var(--warn);">Above 15h threshold</strong>' : 'Within sustainable range'}
+      </div>
+    </div>
+    <div class="summary-block">
+      <h4>Active this week</h4>
+      <div class="stat">${allActive.length}</div>
+      <div class="detail">
+        ${allActive.join('<br>') || 'Nothing scheduled'}
+      </div>
+    </div>
+    <div class="summary-block">
+      <h4>Total participants in training</h4>
+      <div class="stat">${totalParticipants}</div>
+      <div class="detail">
+        Across ${activeCohorts.length} active cohort${activeCohorts.length !== 1 ? 's' : ''}
+      </div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// MODAL HANDLING
+// ============================================================================
+
+let editingIdx = null;
+let pendingSlot = null;
+
+function openAddModal(person, day, session, presetType = null) {
+  editingIdx = null;
+  pendingSlot = { person, day, session };
+  document.getElementById('modalTitle').textContent = 'Add activity · ' + day + ' ' + session.toUpperCase();
+  document.getElementById('activityTypeSelect').value = presetType || 'training';
+  document.getElementById('cohortInput').value = '';
+  document.getElementById('modal').classList.add('active');
+}
+
+function openEditModal(idx) {
+  const acts = getWeekActivities(state.currentWeek);
+  const act = acts[idx];
+  editingIdx = idx;
+  pendingSlot = null;
+  document.getElementById('modalTitle').textContent = 'Edit activity';
+  document.getElementById('activityTypeSelect').value = act.type;
+  document.getElementById('cohortInput').value = act.cohort || '';
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  editingIdx = null;
+  pendingSlot = null;
+}
+
+document.getElementById('modalCancel').addEventListener('click', closeModal);
+document.getElementById('modalSave').addEventListener('click', () => {
+  const type = document.getElementById('activityTypeSelect').value;
+  const cohort = document.getElementById('cohortInput').value.trim();
+
+  if (editingIdx !== null) {
+    updateActivity(state.currentWeek, editingIdx, { type, cohort });
+  } else if (pendingSlot) {
+    addActivity(state.currentWeek, {
+      person: pendingSlot.person,
+      day: pendingSlot.day,
+      session: pendingSlot.session,
+      type, cohort,
+      source: 'manual',
+    });
+  }
+
+  closeModal();
+  render();
+});
+
+// ============================================================================
+// COHORT CRUD
+// ============================================================================
+
+let editingCohortId = null;
+
+function openCohortForm(cohortId = null) {
+  editingCohortId = cohortId;
+  const scn = currentScn();
+
+  document.getElementById('cohortFormTitle').textContent = cohortId ? 'Edit cohort' : 'New training cohort';
+
+  // Next cohort number
+  const existing = scn.cohorts.map(c => c.number).filter(n => !isNaN(n));
+  const nextNum = existing.length > 0 ? Math.max(...existing) + 1 : 10;
+
+  if (cohortId) {
+    const c = scn.cohorts.find(c => c.id === cohortId);
+    document.getElementById('cohortNumberInput').value = c.number;
+    document.getElementById('cohortStartInput').value = c.startDate;
+    document.getElementById('cohortParticipantsInput').value = c.participants;
+    renderTimeslotButtons(c.timeslotId, cohortId);
+    renderFacilitatorPerDay(c.timeslotId, c.facilitators || null, c.facilitator);
+  } else {
+    document.getElementById('cohortNumberInput').value = nextNum;
+    document.getElementById('cohortStartInput').value = '';
+    document.getElementById('cohortParticipantsInput').value = 6;
+    renderTimeslotButtons(null, null);
+    document.getElementById('facilitatorsField').style.display = 'none';
+  }
+
+  document.getElementById('cohortFormModal').classList.add('active');
+}
+
+function renderFacilitatorPerDay(timeslotId, existingFacilitators, fallbackFacilitator) {
+  const field = document.getElementById('facilitatorsField');
+  const container = document.getElementById('facilitatorPerDay');
+
+  if (!timeslotId) {
+    field.style.display = 'none';
+    return;
+  }
+
+  const slot = TIMESLOTS.find(t => t.id === timeslotId);
+  if (!slot) {
+    field.style.display = 'none';
+    return;
+  }
+
+  field.style.display = '';
+  container.innerHTML = '';
+
+  slot.days.forEach(day => {
+    const wrap = document.createElement('div');
+    wrap.style.display = 'grid';
+    wrap.style.gridTemplateColumns = '80px 1fr';
+    wrap.style.alignItems = 'center';
+    wrap.style.gap = '12px';
+
+    const lbl = document.createElement('div');
+    lbl.textContent = day;
+    lbl.style.fontSize = '13px';
+    lbl.style.fontWeight = '500';
+    wrap.appendChild(lbl);
+
+    const sel = document.createElement('select');
+    sel.dataset.day = day;
+    sel.innerHTML = '<option value="iain">Iain</option><option value="neil">Neil</option>';
+
+    // Pick value: existing per-day if set, else fallback, else default to iain
+    let value = 'iain';
+    if (existingFacilitators && existingFacilitators[day]) {
+      value = existingFacilitators[day];
+    } else if (fallbackFacilitator) {
+      value = fallbackFacilitator;
+    }
+    sel.value = value;
+
+    wrap.appendChild(sel);
+    container.appendChild(wrap);
+  });
+}
+
+let selectedTimeslot = null;
+
+function renderTimeslotButtons(preselectedId, excludeCohortId) {
+  const el = document.getElementById('timeslotButtons');
+  el.innerHTML = '';
+  const scn = currentScn();
+
+  // Read the start date if entered, so we can check actual overlap
+  const startDateInput = document.getElementById('cohortStartInput').value;
+  const newStart = startDateInput ? parseDate(startDateInput) : null;
+
+  // For a given prospective timeslot, find any existing cohort that would conflict.
+  // A conflict requires:
+  //   (a) the existing cohort shares at least one (day, session) with the prospective slot, AND
+  //   (b) the existing cohort's sessions overlap in time with the new cohort's start onwards.
+  // If no start date entered, treat any cohort that shares a (day, session) as blocking (conservative).
+  const isSlotTaken = (prospectiveTimeslotId) => {
+    const prospective = TIMESLOTS.find(t => t.id === prospectiveTimeslotId);
+    if (!prospective) return { taken: false };
+
+    const prospectiveDaySessions = new Set(prospective.days.map(d => `${d}|${prospective.session}`));
+
+    for (const c of scn.cohorts) {
+      if (c.id === excludeCohortId) continue;
+      const existing = TIMESLOTS.find(t => t.id === c.timeslotId);
+      if (!existing) continue;
+
+      // Find shared (day, session) keys
+      const existingDaySessions = existing.days.map(d => `${d}|${existing.session}`);
+      const shared = existingDaySessions.filter(k => prospectiveDaySessions.has(k));
+      if (shared.length === 0) continue;
+
+      // Check time overlap
+      if (!newStart) {
+        return { taken: true, by: c, sharedKeys: shared };
+      }
+      const lastSession = c.sessions[c.sessions.length - 1];
+      if (!lastSession) continue;
+      const lastDate = parseDate(lastSession.dateStr);
+      if (lastDate >= newStart) {
+        return { taken: true, by: c, sharedKeys: shared };
+      }
+    }
+    return { taken: false };
+  };
+
+  selectedTimeslot = preselectedId;
+
+  // If the preselected slot has become taken after a date change, deselect it
+  if (preselectedId && isSlotTaken(preselectedId).taken) {
+    selectedTimeslot = null;
+  }
+
+  TIMESLOTS.forEach(slot => {
+    const btn = document.createElement('div');
+    btn.className = 'timeslot-btn';
+    const takenInfo = isSlotTaken(slot.id);
+    const isTaken = takenInfo.taken;
+    if (isTaken) btn.classList.add('taken');
+    if (selectedTimeslot === slot.id) btn.classList.add('selected');
+
+    const takenBy = isTaken ? takenInfo.by : null;
+    let takenLabel = '';
+    if (takenBy) {
+      const lastSession = takenBy.sessions[takenBy.sessions.length - 1];
+      const lastStr = lastSession ? parseDate(lastSession.dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) : '?';
+      // Show which day(s) clash if it's a partial overlap
+      const sharedDays = (takenInfo.sharedKeys || []).map(k => k.split('|')[0]);
+      const existingSlot = TIMESLOTS.find(t => t.id === takenBy.timeslotId);
+      const partialClash = existingSlot && sharedDays.length < existingSlot.days.length;
+      const clashDetail = partialClash ? ` ${sharedDays.join('/')}` : '';
+      takenLabel = `● Cohort ${takenBy.number}${clashDetail} (until ${lastStr})`;
+    }
+
+    btn.innerHTML = `
+      <div class="ts-label">${slot.days[0]} / ${slot.days[1]} ${slot.session.toUpperCase()}</div>
+      <div class="ts-time">${slot.time}</div>
+      ${takenBy ? `<div class="ts-taken">${takenLabel}</div>` : ''}
+    `;
+
+    if (!isTaken) {
+      btn.addEventListener('click', () => {
+        selectedTimeslot = slot.id;
+        renderTimeslotButtons(slot.id, excludeCohortId);
+        // Preserve any already-selected facilitator values
+        const existing = {};
+        document.querySelectorAll('#facilitatorPerDay select').forEach(s => {
+          existing[s.dataset.day] = s.value;
+        });
+        renderFacilitatorPerDay(slot.id, existing, null);
+      });
+    }
+
+    el.appendChild(btn);
+  });
+}
+
+document.getElementById('addCohortBtn').addEventListener('click', () => openCohortForm());
+
+// When the start date changes, re-check timeslot availability against actual cohort end dates
+document.getElementById('cohortStartInput').addEventListener('change', () => {
+  // Preserve current selection and facilitator values
+  const existing = {};
+  document.querySelectorAll('#facilitatorPerDay select').forEach(s => {
+    existing[s.dataset.day] = s.value;
+  });
+  renderTimeslotButtons(selectedTimeslot, editingCohortId);
+  if (selectedTimeslot) {
+    renderFacilitatorPerDay(selectedTimeslot, existing, null);
+  }
+});
+
+document.getElementById('cohortFormCancel').addEventListener('click', () => {
+  document.getElementById('cohortFormModal').classList.remove('active');
+});
+
+document.getElementById('cohortFormSave').addEventListener('click', () => {
+  const number = parseInt(document.getElementById('cohortNumberInput').value);
+  const startDate = document.getElementById('cohortStartInput').value;
+  const participants = parseInt(document.getElementById('cohortParticipantsInput').value);
+
+  if (!number || !startDate || !selectedTimeslot) {
+    alert('Please fill in cohort number, start date, and choose a timeslot.');
+    return;
+  }
+
+  // Read per-day facilitators
+  const facilitators = {};
+  document.querySelectorAll('#facilitatorPerDay select').forEach(s => {
+    facilitators[s.dataset.day] = s.value;
+  });
+
+  const sessions = generateSchedule(startDate, selectedTimeslot);
+  const scn = currentScn();
+
+  if (editingCohortId) {
+    const idx = scn.cohorts.findIndex(c => c.id === editingCohortId);
+    if (idx >= 0) {
+      scn.cohorts[idx] = {
+        ...scn.cohorts[idx],
+        number, startDate, participants,
+        facilitators,
+        timeslotId: selectedTimeslot,
+        sessions,
+      };
+      // Clean up old single facilitator field if present
+      delete scn.cohorts[idx].facilitator;
+    }
+  } else {
+    scn.cohorts.push({
+      id: 'c-' + Date.now(),
+      number, startDate, participants,
+      facilitators,
+      timeslotId: selectedTimeslot,
+      sessions,
+    });
+  }
+
+  saveState();
+  document.getElementById('cohortFormModal').classList.remove('active');
+  render();
+});
+
+function editCohort(id) {
+  openCohortForm(id);
+}
+
+function deleteCohort(id) {
+  const scn = currentScn();
+  const cohort = scn.cohorts.find(c => c.id === id);
+  if (!cohort) return;
+  if (!confirm(`Delete Cohort ${cohort.number}? This cannot be undone.`)) return;
+  scn.cohorts = scn.cohorts.filter(c => c.id !== id);
+  saveState();
+  render();
+}
+
+// ============================================================================
+// AUTO-FILL ROLLING COHORTS
+// ============================================================================
+
+// Which timeslots should be available for rolling generation
+// (Tue/Thu slots intentionally excluded — those phase out)
+const ROLLING_TIMESLOT_IDS = ['mw-am', 'mw-pm', 'wf-am', 'wf-pm'];
+
+function openAutoFillModal() {
+  const scn = currentScn();
+
+  // Render timeslot checkboxes
+  const container = document.getElementById('autoFillSlots');
+  container.innerHTML = '';
+  ROLLING_TIMESLOT_IDS.forEach(tsId => {
+    const ts = TIMESLOTS.find(t => t.id === tsId);
+    if (!ts) return;
+
+    // Find latest cohort in this slot
+    const inSlot = scn.cohorts
+      .filter(c => c.timeslotId === tsId && c.sessions.length > 0)
+      .sort((a, b) => {
+        const aEnd = parseDate(a.sessions[a.sessions.length - 1].dateStr);
+        const bEnd = parseDate(b.sessions[b.sessions.length - 1].dateStr);
+        return bEnd - aEnd;
+      });
+    const latest = inSlot[0];
+    const latestEndStr = latest
+      ? parseDate(latest.sessions[latest.sessions.length - 1].dateStr).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' })
+      : null;
+
+    const wrap = document.createElement('label');
+    wrap.style.display = 'flex';
+    wrap.style.alignItems = 'flex-start';
+    wrap.style.gap = '8px';
+    wrap.style.padding = '10px 12px';
+    wrap.style.background = 'var(--bg-panel)';
+    wrap.style.border = '1px solid var(--rule)';
+    wrap.style.borderRadius = '3px';
+    wrap.style.cursor = 'pointer';
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.dataset.timeslotId = tsId;
+    cb.checked = true;
+    cb.style.marginTop = '3px';
+    cb.style.cursor = 'pointer';
+    wrap.appendChild(cb);
+
+    const text = document.createElement('div');
+    text.innerHTML = `
+      <div style="font-weight: 600; font-size: 13px;">${ts.days[0]} / ${ts.days[1]} ${ts.session.toUpperCase()}</div>
+      <div style="font-size: 11px; color: var(--ink-faint); font-family: 'JetBrains Mono', monospace; margin-top: 2px;">
+        ${latest ? `Continues from Cohort ${latest.number} (ends ${latestEndStr})` : 'No existing cohort — starts fresh'}
+      </div>
+    `;
+    wrap.appendChild(text);
+
+    container.appendChild(wrap);
+  });
+
+  // Suggest next cohort number
+  const existingNums = scn.cohorts.map(c => c.number).filter(n => !isNaN(n));
+  const nextNum = existingNums.length > 0 ? Math.max(...existingNums) + 1 : 16;
+  document.getElementById('autoFillStartNum').value = nextNum;
+
+  // Suggest end date — 12 months from now
+  const endSuggest = addDays(new Date(), 365);
+  document.getElementById('autoFillEndDate').value = formatDateISO(endSuggest);
+
+  document.getElementById('autoFillFacilitator').value = 'neil';
+  document.getElementById('autoFillParticipants').value = 6;
+
+  document.getElementById('autoFillModal').classList.add('active');
+}
+
+// Given a cohort's last session date, compute the start date for the next cohort:
+// last session week → admin week (the following week) → next cohort starts in the week after
+function computeNextCohortStart(lastSessionDate, timeslot) {
+  // Find Monday of the week containing the last session
+  const lastMon = getMondayOf(lastSessionDate);
+  // Skip the admin week (next week) → new cohort starts in the week after
+  const newCohortWeekMon = addDays(lastMon, 14);
+  // Find the first valid day in that week
+  const dayIndices = timeslot.days.map(d => DAY_INDEX[d]);
+  // Iterate Mon-Fri of the target week
+  for (let i = 0; i < 5; i++) {
+    const cand = addDays(newCohortWeekMon, i);
+    const dow = (cand.getDay() + 6) % 7;
+    if (dayIndices.includes(dow)) {
+      return formatDateISO(cand);
+    }
+  }
+  return formatDateISO(newCohortWeekMon);
+}
+
+function runAutoFill() {
+  const scn = currentScn();
+  const selectedSlots = Array.from(document.querySelectorAll('#autoFillSlots input[type="checkbox"]:checked'))
+    .map(cb => cb.dataset.timeslotId);
+
+  if (selectedSlots.length === 0) {
+    alert('Select at least one timeslot to fill.');
+    return;
+  }
+
+  const startNum = parseInt(document.getElementById('autoFillStartNum').value);
+  const endDateStr = document.getElementById('autoFillEndDate').value;
+  const facilitator = document.getElementById('autoFillFacilitator').value;
+  const participants = parseInt(document.getElementById('autoFillParticipants').value);
+
+  if (!startNum || !endDateStr) {
+    alert('Set a starting cohort number and an end date.');
+    return;
+  }
+
+  const horizonEnd = parseDate(endDateStr);
+  let cohortNum = startNum;
+  const newCohorts = [];
+
+  // Process each selected slot independently — generate all cohorts first, sort, then number
+  selectedSlots.forEach(tsId => {
+    const ts = TIMESLOTS.find(t => t.id === tsId);
+    if (!ts) return;
+
+    // Find latest cohort end date in this slot (across all existing + newly-generated)
+    const latestEnd = (() => {
+      const all = [...scn.cohorts, ...newCohorts].filter(c => c.timeslotId === tsId);
+      if (all.length === 0) return null;
+      let maxDate = null;
+      all.forEach(c => {
+        const last = c.sessions[c.sessions.length - 1];
+        if (!last) return;
+        const d = parseDate(last.dateStr);
+        if (!maxDate || d > maxDate) maxDate = d;
+      });
+      return maxDate;
+    })();
+
+    let nextStartStr;
+    if (latestEnd) {
+      nextStartStr = computeNextCohortStart(latestEnd, ts);
+    } else {
+      // No existing cohort in slot — start at the first valid day from next Monday
+      const today = new Date();
+      const nextMon = addDays(getMondayOf(today), 7);
+      const dayIndices = ts.days.map(d => DAY_INDEX[d]);
+      let candidateStr = formatDateISO(nextMon);
+      for (let i = 0; i < 5; i++) {
+        const cand = addDays(nextMon, i);
+        const dow = (cand.getDay() + 6) % 7;
+        if (dayIndices.includes(dow)) {
+          candidateStr = formatDateISO(cand);
+          break;
+        }
+      }
+      nextStartStr = candidateStr;
+    }
+
+    // Generate cohorts until horizon (without final cohort numbers yet)
+    let safety = 0;
+    while (safety < 20) {
+      safety++;
+      const start = parseDate(nextStartStr);
+      if (start > horizonEnd) break;
+
+      const sessions = generateSchedule(nextStartStr, tsId);
+      if (sessions.length === 0) break;
+
+      const facilitatorsObj = {};
+      ts.days.forEach(d => { facilitatorsObj[d] = facilitator; });
+
+      newCohorts.push({
+        id: 'c-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        number: null, // assigned after sort
+        startDate: nextStartStr,
+        participants,
+        facilitators: facilitatorsObj,
+        timeslotId: tsId,
+        sessions,
+      });
+
+      const last = sessions[sessions.length - 1];
+      nextStartStr = computeNextCohortStart(parseDate(last.dateStr), ts);
+    }
+  });
+
+  // Sort all newly-generated cohorts by start date so numbering is chronological
+  newCohorts.sort((a, b) => parseDate(a.startDate) - parseDate(b.startDate));
+  newCohorts.forEach(c => {
+    c.number = cohortNum;
+    cohortNum++;
+  });
+
+  if (newCohorts.length === 0) {
+    alert('No cohorts generated. Check that selected slots have room before the end date.');
+    return;
+  }
+
+  // Decide whether to also create Work Foundations
+  const includeWF = document.getElementById('autoFillIncludeWF').checked;
+  const hasWF = scn.ongoing.some(o => o.type === 'wf');
+  const willCreateWF = includeWF && !hasWF;
+
+  const wfMsg = willCreateWF ? `\n+ Work Foundations ongoing activity` :
+                (includeWF && hasWF ? '\n(Work Foundations already exists — skipped)' : '');
+
+  // Confirm before applying
+  if (!confirm(`Generated ${newCohorts.length} new cohort${newCohorts.length !== 1 ? 's' : ''} (Cohort ${startNum} through ${cohortNum - 1}).${wfMsg}\n\nAdd them to the scenario?`)) return;
+
+  scn.cohorts.push(...newCohorts);
+
+  if (willCreateWF) {
+    const todayStr = formatDateISO(new Date());
+    scn.ongoing.push({
+      id: 'o-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+      name: 'Work Foundations',
+      type: 'wf',
+      startDate: todayStr,
+      endDate: null,
+      facilitator: 'iain',
+      slots: [
+        { day: 'Wed', session: 'am' }, { day: 'Wed', session: 'pm' },
+        { day: 'Thu', session: 'am' }, { day: 'Thu', session: 'pm' },
+        { day: 'Fri', session: 'am' }, { day: 'Fri', session: 'pm' },
+      ],
+    });
+  }
+
+  saveState();
+  document.getElementById('autoFillModal').classList.remove('active');
+  render();
+}
+
+document.getElementById('autoFillBtn').addEventListener('click', openAutoFillModal);
+document.getElementById('autoFillCancel').addEventListener('click', () => {
+  document.getElementById('autoFillModal').classList.remove('active');
+});
+document.getElementById('autoFillRun').addEventListener('click', runAutoFill);
+
+// ============================================================================
+// ONGOING ACTIVITY CRUD
+// ============================================================================
+
+let editingOngoingId = null;
+
+function openOngoingForm(ongoingId = null) {
+  editingOngoingId = ongoingId;
+  const scn = currentScn();
+
+  document.getElementById('ongoingFormTitle').textContent = ongoingId ? 'Edit ongoing activity' : 'New ongoing activity';
+
+  // Build day/session checkbox grid
+  const grid = document.getElementById('ongoingDaysGrid');
+  grid.innerHTML = '<div></div><div style="text-align: center; font-family: \'JetBrains Mono\', monospace; font-size: 10px; color: var(--ink-faint); text-transform: uppercase;">AM</div><div style="text-align: center; font-family: \'JetBrains Mono\', monospace; font-size: 10px; color: var(--ink-faint); text-transform: uppercase;">PM</div>';
+
+  DAYS.forEach(day => {
+    const dayLabel = document.createElement('div');
+    dayLabel.textContent = day;
+    dayLabel.style.fontSize = '12px';
+    dayLabel.style.padding = '4px';
+    grid.appendChild(dayLabel);
+
+    SESSIONS.forEach(session => {
+      const wrap = document.createElement('div');
+      wrap.style.textAlign = 'center';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.dataset.day = day;
+      cb.dataset.session = session;
+      cb.style.cursor = 'pointer';
+      wrap.appendChild(cb);
+      grid.appendChild(wrap);
+    });
+  });
+
+  if (ongoingId) {
+    const ong = scn.ongoing.find(o => o.id === ongoingId);
+    document.getElementById('ongoingNameInput').value = ong.name;
+    document.getElementById('ongoingTypeSelect').value = ong.type;
+    document.getElementById('ongoingStartInput').value = ong.startDate;
+    document.getElementById('ongoingEndInput').value = ong.endDate || '';
+    document.getElementById('ongoingFacilitatorSelect').value = ong.facilitator;
+    ong.slots.forEach(s => {
+      const cb = grid.querySelector(`input[data-day="${s.day}"][data-session="${s.session}"]`);
+      if (cb) cb.checked = true;
+    });
+  } else {
+    document.getElementById('ongoingNameInput').value = '';
+    document.getElementById('ongoingTypeSelect').value = 'wf';
+    document.getElementById('ongoingStartInput').value = '';
+    document.getElementById('ongoingEndInput').value = '';
+    document.getElementById('ongoingFacilitatorSelect').value = 'iain';
+  }
+
+  document.getElementById('ongoingFormModal').classList.add('active');
+}
+
+document.getElementById('addOngoingBtn').addEventListener('click', () => openOngoingForm());
+
+document.getElementById('ongoingFormCancel').addEventListener('click', () => {
+  document.getElementById('ongoingFormModal').classList.remove('active');
+});
+
+document.getElementById('ongoingFormSave').addEventListener('click', () => {
+  const name = document.getElementById('ongoingNameInput').value.trim();
+  const type = document.getElementById('ongoingTypeSelect').value;
+  const startDate = document.getElementById('ongoingStartInput').value;
+  const endDate = document.getElementById('ongoingEndInput').value || null;
+  const facilitator = document.getElementById('ongoingFacilitatorSelect').value;
+
+  const slots = [];
+  document.querySelectorAll('#ongoingDaysGrid input[type="checkbox"]:checked').forEach(cb => {
+    slots.push({ day: cb.dataset.day, session: cb.dataset.session });
+  });
+
+  if (!name || !startDate || slots.length === 0) {
+    alert('Please fill in name, start date, and select at least one day/session.');
+    return;
+  }
+
+  const scn = currentScn();
+
+  if (editingOngoingId) {
+    const idx = scn.ongoing.findIndex(o => o.id === editingOngoingId);
+    if (idx >= 0) {
+      scn.ongoing[idx] = {
+        ...scn.ongoing[idx],
+        name, type, startDate, endDate, facilitator, slots,
+      };
+    }
+  } else {
+    scn.ongoing.push({
+      id: 'o-' + Date.now(),
+      name, type, startDate, endDate, facilitator, slots,
+    });
+  }
+
+  saveState();
+  document.getElementById('ongoingFormModal').classList.remove('active');
+  render();
+});
+
+function editOngoing(id) {
+  openOngoingForm(id);
+}
+
+function deleteOngoing(id) {
+  const scn = currentScn();
+  const ong = scn.ongoing.find(o => o.id === id);
+  if (!ong) return;
+  if (!confirm(`Delete "${ong.name}"? This cannot be undone.`)) return;
+  scn.ongoing = scn.ongoing.filter(o => o.id !== id);
+  saveState();
+  render();
+}
+
+// ============================================================================
+// SCENARIO MANAGEMENT
+// ============================================================================
+
+document.getElementById('scenarioSelect').addEventListener('change', (e) => {
+  state.currentScenario = e.target.value;
+  saveState();
+  render();
+});
+
+document.getElementById('saveBtn').addEventListener('click', () => {
+  saveState();
+  const btn = document.getElementById('saveBtn');
+  const original = btn.textContent;
+  btn.textContent = 'Saved ✓';
+  setTimeout(() => { btn.textContent = original; }, 1200);
+});
+
+document.getElementById('saveAsBtn').addEventListener('click', () => {
+  document.getElementById('saveAsInput').value = '';
+  document.getElementById('saveAsModal').classList.add('active');
+});
+
+document.getElementById('saveAsCancel').addEventListener('click', () => {
+  document.getElementById('saveAsModal').classList.remove('active');
+});
+
+document.getElementById('saveAsConfirm').addEventListener('click', () => {
+  const name = document.getElementById('saveAsInput').value.trim();
+  if (!name) return;
+  const current = currentScn();
+  state.scenarios[name] = structuredClone(current);
+  state.currentScenario = name;
+  saveState();
+  document.getElementById('saveAsModal').classList.remove('active');
+  render();
+});
+
+document.getElementById('deleteBtn').addEventListener('click', () => {
+  if (state.currentScenario === 'Current state') {
+    alert('Cannot delete the default Current state scenario.');
+    return;
+  }
+  if (!confirm('Delete scenario "' + state.currentScenario + '"?')) return;
+  delete state.scenarios[state.currentScenario];
+  state.currentScenario = 'Current state';
+  saveState();
+  render();
+});
+
+document.getElementById('clearAllBtn').addEventListener('click', () => {
+  const scn = currentScn();
+  const count = Object.keys(scn.overrides).length;
+  if (count === 0) {
+    alert('No manual overrides to clear — all weeks are derived from cohorts.');
+    return;
+  }
+  if (!confirm(`Clear all manual overrides in this scenario? (${count} override${count !== 1 ? 's' : ''} will be removed.)`)) return;
+  scn.overrides = {};
+  saveState();
+  render();
+});
+
+// Export
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const scn = currentScn();
+  const payload = {
+    format: 'workload-planner-scenario',
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    name: state.currentScenario,
+    data: scn,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const safeName = state.currentScenario.replace(/[^a-z0-9\-_]+/gi, '_');
+  a.href = url;
+  a.download = 'workload_' + safeName + '.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+// Import
+document.getElementById('importBtn').addEventListener('click', () => {
+  document.getElementById('importFile').click();
+});
+
+document.getElementById('importFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const parsed = JSON.parse(ev.target.result);
+      if (parsed.format !== 'workload-planner-scenario' || !parsed.data || !parsed.name) {
+        alert('Not a valid workload planner scenario file.');
+        return;
+      }
+
+      let importName = parsed.name;
+      if (state.scenarios[importName]) {
+        const choice = confirm(
+          'A scenario called "' + importName + '" already exists.\n\n' +
+          'OK to overwrite, Cancel to import under a new name.'
+        );
+        if (!choice) {
+          importName = parsed.name + ' (imported ' + new Date().toLocaleDateString('en-AU') + ')';
+        }
+      }
+
+      state.scenarios[importName] = parsed.data;
+      state.currentScenario = importName;
+      saveState();
+      render();
+
+      const btn = document.getElementById('importBtn');
+      const original = btn.textContent;
+      btn.textContent = 'Imported ✓';
+      setTimeout(() => { btn.textContent = original; }, 1500);
+    } catch (err) {
+      alert('Failed to read scenario file: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+// ============================================================================
+// COHORT PANEL TOGGLE
+// ============================================================================
+
+document.getElementById('cohortPanelHeader').addEventListener('click', () => {
+  const panel = document.getElementById('cohortPanel');
+  panel.classList.toggle('collapsed');
+  document.getElementById('cohortPanelToggle').textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
+});
+
+// ============================================================================
+// TIMELINE & SLIDER
+// ============================================================================
+
+document.getElementById('weekSlider').addEventListener('input', (e) => {
+  state.currentWeek = parseInt(e.target.value);
+  saveState();
+  render();
+});
+
+document.getElementById('timelineGrid').addEventListener('click', (e) => {
+  const inner = document.getElementById('timelineInner');
+  const innerRect = inner.getBoundingClientRect();
+  const relativeX = e.clientX - innerRect.left;
+  const WEEKS_TOTAL = getTimelineHorizon();
+  const week = Math.floor((relativeX / innerRect.width) * (WEEKS_TOTAL + 1));
+  if (week >= 0 && week <= WEEKS_TOTAL) {
+    state.currentWeek = week;
+    saveState();
+    render();
+  }
+});
+
+// Drag setup for palette
+document.querySelectorAll('.palette-item').forEach(item => {
+  item.addEventListener('dragstart', (e) => {
+    e.dataTransfer.setData('activity-type', item.dataset.type);
+  });
+});
+
+// ============================================================================
+// INIT
+// ============================================================================
+
+loadState();
+render();
+</script>
+</body>
+</html>
