@@ -2,6 +2,8 @@
 
 Delivery planner for the QA programme: Level 1–2 cohorts, Level 3 groups, ongoing activities (Work Foundations, ACE), SA public holidays and closures, and each week's workload for Iain and Neil.
 
+**Live site:** https://workload-planner-qa.netlify.app (Netlify admin: https://app.netlify.com/projects/workload-planner-qa)
+
 Anyone with the link can view the plan. Editors unlock editing with a PIN, make changes and click **Publish for team**.
 
 - `public/index.html` is the page. It loads the plan from `/api/plan` and checks for a newer version when you return to the tab and every 5 minutes.
@@ -17,7 +19,7 @@ This folder is its own Netlify site. It is separate from the QA tools site at th
 cd "C:/SRC tools/workload-planner"
 npm install
 npx netlify login
-npx netlify sites:create --name workload-planner-qa
+npx netlify sites:create --name workload-planner-qa   # already done; use `npx netlify link` on a new machine
 npx netlify env:set PLANNER_PIN "pick-a-pin"
 npx netlify deploy --prod --no-build --dir public --functions netlify/functions
 ```
