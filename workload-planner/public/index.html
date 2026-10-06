@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Workload Planner</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -83,6 +88,7 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
 
 body {
   font-family: var(--font-body);
@@ -167,7 +173,7 @@ header {
   margin-right: 4px;
 }
 
-select, button, input[type="text"], input[type="number"], input[type="date"] {
+select, button, input[type="text"], input[type="password"], input[type="number"], input[type="date"] {
   font-family: var(--font-body);
   font-size: 13px;
   background: var(--bg-panel);
@@ -178,7 +184,7 @@ select, button, input[type="text"], input[type="number"], input[type="date"] {
   cursor: pointer;
 }
 
-input[type="text"], input[type="number"], input[type="date"] { cursor: text; }
+input[type="text"], input[type="password"], input[type="number"], input[type="date"] { cursor: text; }
 
 button { font-weight: 500; transition: background 0.15s, border-color 0.15s; }
 button:hover:not(:disabled) { background: var(--bg-sunken); border-color: var(--ink-soft); }
@@ -856,6 +862,8 @@ footer {
   * { transition: none !important; }
 }
 </style>
+</head>
+<body>
 
 <div id="app"></div>
 
@@ -1185,7 +1193,25 @@ footer {
     </div>
   </div>
 
-  <!-- Confirmation modal (the hosted viewer blocks alert/confirm) -->
+  <!-- Editor PIN modal -->
+  <div class="modal-overlay" id="pinModal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pinTitle">
+      <h3 id="pinTitle">Editor PIN</h3>
+      <p class="modal-text" id="pinMsg">Enter the editor PIN to change the plan.</p>
+      <form id="pinForm">
+        <div class="modal-field">
+          <label for="pinInput">PIN</label>
+          <input type="password" id="pinInput" autocomplete="current-password">
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="pinCancel">Cancel</button>
+          <button type="submit" class="primary">Unlock</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Confirmation modal -->
   <div class="modal-overlay" id="confirmModal">
     <div class="modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmMessage">
       <h3 id="confirmTitle">Are you sure?</h3>
@@ -1609,29 +1635,37 @@ function sharedJSON(scenarios, cal) {
   return JSON.stringify({ scenarios, calendar: cal });
 }
 
-let published = { scheduleVersion: SCHEDULE_VERSION, updatedAt: null, scenarios: {} };
-try { published = JSON.parse($('plannerData').textContent) || published; } catch (_) {}
-published.scenarios = normalizeScenarios(published.scenarios);
-published.calendar = normalizeCalendar(published.calendar);
-setCalendar(published.calendar);
-if (published.scheduleVersion !== SCHEDULE_VERSION) {
-  regenerateSessions(published.scenarios);
-}
-const publishedJSON = sharedJSON(published.scenarios, published.calendar);
+// The plan the team sees is stored on the server (/api/plan). `published` is the
+// last version this page loaded or saved; `state` is the working copy on screen.
+const API = '/api/plan';
+const PIN_KEY = 'workload-planner-pin';
 
-let state = {
-  currentScenario: 'Current state',
-  currentWeek: 0,
-  scenarios: structuredClone(published.scenarios),
-  calendar: structuredClone(published.calendar),
-};
-setCalendar(state.calendar);
+let state = { currentScenario: 'Current state', currentWeek: 0, scenarios: {}, calendar: null };
+let published = { version: 0, updatedAt: null, scenarios: {}, calendar: null };
+let publishedJSON = '';
 let showPastHolidays = false;
 
-// 'pending' until the viewer tells us who this is; 'local' when opened as a plain file.
+function setPublished(plan, version, updatedAt) {
+  plan = plan || {};
+  const scenarios = normalizeScenarios(structuredClone(plan.scenarios));
+  const cal = normalizeCalendar(plan.calendar);
+  setCalendar(cal);
+  regenerateSessions(scenarios); // holidays or schedule rules may have changed since it was saved
+  published = { version: Number(version) || 0, updatedAt: updatedAt || null, scenarios, calendar: cal };
+  publishedJSON = sharedJSON(scenarios, cal);
+  if (state.calendar) setCalendar(state.calendar);
+}
+
+// Starting plan, used until the server answers (and when the server has no plan yet)
+let seedPlan = {};
+try { seedPlan = JSON.parse($('plannerData').textContent) || {}; } catch (_) {}
+setPublished(seedPlan, 0, null);
+applyShared(published.scenarios, published.calendar);
+
+// 'pending' while loading; 'view' read-only; 'edit' unlocked with the PIN; 'local' opened as a plain file.
 let mode = 'pending';
-let artifactApi = null;
-let downloadsApi = null;
+let editorPin = null;
+let loadError = false;
 let publishing = false;
 let draftOffer = null; // an unpublished draft from an earlier visit, offered for restore
 
@@ -1719,56 +1753,117 @@ function setWeek(w) {
 }
 
 // ============================================================================
-// HOSTING: publish, read-only view, drafts
+// HOSTING: load, unlock, publish, drafts
 // ============================================================================
 
-function buildPageHtml(data) {
-  const headStyle = document.head && document.head.querySelector('style');
-  const reset = headStyle ? headStyle.textContent :
-    ':root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif;background:#faf9f7}img{max-width:100%}[hidden]{display:none!important}';
-  const fontLinks = Array.from(document.querySelectorAll('link[href*="fonts.g"]')).map(l => l.outerHTML).join('\n');
-  const json = JSON.stringify(data).replace(/</g, '\\u003c');
-  const close = '</' + 'script>';
-  return '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>' + reset + '</style></head><body>' +
-    '<title>Workload Planner</title>\n' +
-    fontLinks + '\n' +
-    '<style id="plannerStyle">' + $('plannerStyle').textContent + '</style>\n\n' +
-    '<div id="app"></div>\n\n' +
-    '<template id="appTemplate">' + $('appTemplate').innerHTML + '</template>\n\n' +
-    '<script type="application/json" id="plannerData">' + json + close + '\n\n' +
-    '<script id="plannerScript">' + $('plannerScript').textContent + close + '\n' +
-    '</body></html>';
+async function fetchPlan() {
+  const res = await fetch(API, { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const data = await res.json();
+  setPublished(data.plan || seedPlan, data.version, data.updatedAt);
+}
+
+function savedDraft() {
+  const draft = storageGet(local(), DRAFT_KEY);
+  if (!draft || !draft.scenarios) return null;
+  const differs = sharedJSON(normalizeScenarios(structuredClone(draft.scenarios)), normalizeCalendar(draft.calendar || published.calendar)) !== publishedJSON;
+  if (!differs) { storageRemove(local(), DRAFT_KEY); return null; }
+  return draft;
+}
+
+async function checkPin(pin) {
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-planner-pin': pin },
+      body: JSON.stringify({ action: 'check' }),
+    });
+    if (res.ok) return 'ok';
+    if (res.status === 401) return 'wrong';
+    if (res.status === 500) return 'unset';
+    return 'error';
+  } catch (_) {
+    return 'error';
+  }
+}
+
+function startEditing(pin) {
+  editorPin = pin;
+  storageSet(local(), PIN_KEY, pin);
+  mode = 'edit';
+  draftOffer = savedDraft();
+}
+
+async function unlockEditing() {
+  let message = 'Enter the editor PIN to change the plan.';
+  for (;;) {
+    const pin = await askPin(message);
+    if (!pin) return;
+    const result = await checkPin(pin);
+    if (result === 'ok') {
+      startEditing(pin);
+      render();
+      toast('Editing unlocked in this browser.');
+      return;
+    }
+    if (result === 'wrong') { message = "That PIN didn't work. Try again."; continue; }
+    toast(result === 'unset'
+      ? 'Editing is not set up yet: PLANNER_PIN is missing on the server.'
+      : "Can't reach the planner to check the PIN. Try again in a moment.", 6000);
+    return;
+  }
+}
+
+async function lockEditing() {
+  if (isDirty() && !(await askConfirm('Lock editing?', 'Your unpublished changes stay saved in this browser. Unlock again to publish or discard them.', 'Lock editing'))) return;
+  editorPin = null;
+  storageRemove(local(), PIN_KEY);
+  mode = 'view';
+  draftOffer = null;
+  applyShared(published.scenarios, published.calendar);
+  render();
 }
 
 async function publishChanges() {
-  if (!artifactApi || publishing) return;
+  if (mode !== 'edit' || publishing) return;
   publishing = true;
   renderStatus();
-  const data = { scheduleVersion: SCHEDULE_VERSION, updatedAt: new Date().toISOString(), calendar: state.calendar, scenarios: state.scenarios };
-  // Keep the draft until the reload shows it landed; a matching draft is dropped on load.
-  storageSet(local(), DRAFT_KEY, { savedAt: new Date().toISOString(), scenarios: state.scenarios, calendar: state.calendar });
-  saveView();
+  const plan = { scheduleVersion: SCHEDULE_VERSION, calendar: state.calendar, scenarios: state.scenarios };
   try {
-    await artifactApi.publish(buildPageHtml(data));
-    toast('Published. Loading the new version…');
-  } catch (err) {
-    const code = err && err.code;
-    if (code === 'conflict') {
-      toast('Someone published a newer version while you were editing. Loading it now. Your changes are kept and you can restore them.', 7000);
-    } else if (code === 'not_writer' || code === 'not_granted' || code === 'not_declared' || code === 'consent_required') {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-planner-pin': editorPin },
+      body: JSON.stringify({ action: 'save', baseVersion: published.version, plan }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setPublished(plan, data.version, data.updatedAt);
+      storageRemove(local(), DRAFT_KEY);
+      toast('Published. The team sees this version now.');
+    } else if (res.status === 409) {
+      // Keep this editor's work as a draft, show the newer version, and offer the draft back.
+      const mine = { savedAt: new Date().toISOString(), scenarios: structuredClone(state.scenarios), calendar: structuredClone(state.calendar) };
+      storageSet(local(), DRAFT_KEY, mine);
+      setPublished(data.plan || seedPlan, data.version, data.updatedAt);
+      applyShared(published.scenarios, published.calendar);
+      draftOffer = mine;
+      toast('Someone published a newer version first. It is loaded now. Restore puts your changes back over it.', 8000);
+    } else if (res.status === 401) {
+      editorPin = null;
+      storageRemove(local(), PIN_KEY);
       mode = 'view';
-      toast('You can view this planner but not publish changes to it.', 6000);
-      render();
-    } else if (code === 'rate_limited') {
-      toast('Publishing too often. Wait a minute, then publish again.', 6000);
-    } else if (code === 'too_large') {
-      toast('The plan is too large to publish. Delete unused scenarios and try again.', 7000);
+      applyShared(published.scenarios, published.calendar);
+      toast('The editor PIN has changed. Your changes are saved in this browser; unlock with the new PIN to publish them.', 8000);
+    } else if (res.status === 413) {
+      toast('The plan is too large to save. Delete unused scenarios and try again.', 7000);
     } else {
-      toast('Could not publish (' + (code || 'unknown error') + '). Your changes are still here; try again.', 7000);
+      toast((data.error || 'Could not publish.') + ' Your changes are still here; try again.', 7000);
     }
+  } catch (_) {
+    toast("Can't reach the planner. Your changes are still here; try again.", 7000);
   } finally {
     publishing = false;
-    renderStatus();
+    render();
   }
 }
 
@@ -1795,36 +1890,71 @@ function dismissDraft() {
 }
 
 async function initHosting() {
-  const draft = storageGet(local(), DRAFT_KEY);
-  const draftDiffers = draft && draft.scenarios &&
-    sharedJSON(normalizeScenarios(draft.scenarios), normalizeCalendar(draft.calendar || published.calendar)) !== publishedJSON;
-  if (draft && !draftDiffers) storageRemove(local(), DRAFT_KEY);
-
-  if (!window.claude || typeof window.claude.use !== 'function') {
-    // Opened as a plain file: edit freely, changes stay in this browser.
-    mode = 'local';
-    if (draftDiffers) applyShared(draft.scenarios, draft.calendar || published.calendar);
-    render();
-    return;
-  }
-
   mode = 'pending';
   render();
   try {
-    const [art, usr, dl] = await Promise.all([
-      window.claude.use('artifact'),
-      window.claude.use('user'),
-      window.claude.use('downloads'),
-    ]);
-    artifactApi = art;
-    downloadsApi = dl;
-    const canEdit = art && usr ? await usr.canEdit() : false;
-    mode = canEdit ? 'edit' : 'view';
+    await fetchPlan();
+    loadError = false;
   } catch (_) {
+    if (location.protocol === 'file:') {
+      // Opened as a plain file: edit freely, changes stay in this browser.
+      mode = 'local';
+      const draft = savedDraft();
+      if (draft) applyShared(draft.scenarios, draft.calendar || published.calendar);
+      render();
+      return;
+    }
+    loadError = true;
     mode = 'view';
+    render();
+    return;
   }
-  if (mode === 'edit' && draftDiffers) draftOffer = draft;
+  applyShared(published.scenarios, published.calendar);
+
+  const pin = storageGet(local(), PIN_KEY);
+  mode = 'view';
+  if (pin) {
+    const result = await checkPin(pin);
+    if (result === 'ok') startEditing(pin);
+    else if (result === 'wrong') storageRemove(local(), PIN_KEY);
+  }
   render();
+}
+
+// Pick up newer versions while the page is open: on return to the tab and every few minutes.
+async function refreshPlan() {
+  if (mode === 'local' || mode === 'pending' || publishing || document.hidden) return;
+  if (loadError) { initHosting(); return; }
+  if (mode === 'edit' && isDirty()) return; // a publish from here will report the newer version
+  const before = published.version;
+  try { await fetchPlan(); } catch (_) { return; }
+  if (published.version !== before) {
+    applyShared(published.scenarios, published.calendar);
+    render();
+    toast('The plan was updated.');
+  }
+}
+document.addEventListener('visibilitychange', refreshPlan);
+setInterval(refreshPlan, 5 * 60 * 1000);
+
+function askPin(message) {
+  return new Promise(resolve => {
+    const overlay = $('pinModal');
+    $('pinMsg').textContent = message;
+    $('pinInput').value = '';
+    const finish = value => {
+      overlay.classList.remove('active');
+      $('pinForm').removeEventListener('submit', onSubmit);
+      $('pinCancel').removeEventListener('click', onCancel);
+      resolve(value);
+    };
+    const onSubmit = e => { e.preventDefault(); finish($('pinInput').value.trim() || null); };
+    const onCancel = () => finish(null);
+    $('pinForm').addEventListener('submit', onSubmit);
+    $('pinCancel').addEventListener('click', onCancel);
+    overlay.classList.add('active');
+    $('pinInput').focus();
+  });
 }
 
 function renderStatus() {
@@ -1844,20 +1974,29 @@ function renderStatus() {
     return b;
   };
 
-  if (mode === 'pending' || mode === 'view') {
+  if (mode === 'pending') {
     bar.dataset.state = 'view';
-    text.textContent = (mode === 'pending' ? 'Loading…' : 'View only') + (stamp ? ' · Last updated ' + stamp : '');
+    text.textContent = 'Loading the plan…';
     return;
   }
 
   if (mode === 'local') {
-    const dirty = isDirty();
-    bar.dataset.state = dirty ? 'dirty' : 'published';
+    bar.dataset.state = isDirty() ? 'dirty' : 'published';
     text.textContent = 'Local copy · changes are saved in this browser only';
     return;
   }
 
-  // Editor on the hosted page
+  if (mode === 'view') {
+    bar.dataset.state = loadError ? 'dirty' : 'view';
+    text.textContent = loadError
+      ? "Can't reach the planner. Retrying when you come back to this tab."
+      : 'View only' + (stamp ? ' · Last updated ' + stamp : '');
+    if (loadError) addBtn('Try again', initHosting);
+    else addBtn('Editor unlock', unlockEditing);
+    return;
+  }
+
+  // Editor
   if (draftOffer) {
     bar.dataset.state = 'dirty';
     text.textContent = 'You have unpublished changes from ' + (formatStamp(draftOffer.savedAt) || 'an earlier visit') + '.';
@@ -1879,7 +2018,8 @@ function renderStatus() {
     addBtn('Publish for team', publishChanges, 'primary');
   } else {
     bar.dataset.state = 'published';
-    text.textContent = 'Published' + (stamp ? ' · Last updated ' + stamp : '') + ' · the team sees this version';
+    text.textContent = 'Editing · ' + (stamp ? 'Last published ' + stamp : 'Nothing published yet');
+    addBtn('Lock editing', lockEditing);
   }
 }
 
@@ -3335,27 +3475,14 @@ async function exportScenario() {
   const text = JSON.stringify(payload, null, 2);
   const filename = 'workload_' + state.currentScenario.replace(/[^a-z0-9\-_]+/gi, '_') + '.json';
 
-  if (downloadsApi) {
-    try {
-      const res = await downloadsApi.save({ filename, data: text });
-      if (res && res.status && res.status !== 'saved') toast('Export cancelled.');
-    } catch (_) {
-      toast('Export is not available here.');
-    }
-    return;
-  }
-  if (mode === 'local') {
-    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    return;
-  }
-  toast('Export is not available here.');
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 async function importScenarioFile(file) {
@@ -3613,3 +3740,5 @@ wireEvents();
 loadView();
 initHosting();
 </script>
+</body>
+</html>

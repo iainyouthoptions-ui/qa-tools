@@ -1,0 +1,11 @@
+# Workload Planner: static page + one function backed by Netlify Blobs.
+# This folder is its own Netlify site, separate from the QA tools site at the repo root.
+# The npm scripts pass --dir/--functions explicitly because the CLI may treat the git root
+# as the project root until this folder is linked to a site.
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+[dev]
+  framework = "#static"
+  port = 8889
