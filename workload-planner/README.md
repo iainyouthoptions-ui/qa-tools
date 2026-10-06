@@ -46,6 +46,9 @@ In Windows PowerShell, use `npm.cmd` and `npx.cmd`, because the plain `npm` and 
 - Changes stay in your browser until you click **Publish for team**. If you close the tab first, they're offered back next time.
 - If someone else published while you were editing, your publish is refused and their version is loaded. Your changes are kept: **Restore** puts them back over theirs, then publish again.
 - Holidays and closures are part of the plan. Changing them recalculates every cohort's dates.
+- **Notes** are part of the plan too: editors type them in the Notes panel and they publish with everything else.
+- **Holiday clashes** sit under the timeline, collapsed, with the count in the header.
+- **Ask Claude** copies a summary of the current scenario (rules, programmes, holidays, week-by-week load, detected clashes and notes) with a review prompt. Open claude.ai, paste and send. Nothing is sent anywhere until you paste it.
 
 ## Everyday admin
 

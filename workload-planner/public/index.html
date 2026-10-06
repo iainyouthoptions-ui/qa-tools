@@ -195,8 +195,42 @@ button.warn { color: var(--warn); border-color: var(--warn-soft); }
 button.warn:hover:not(:disabled) { background: var(--warn-soft); }
 button.small { padding: 4px 10px; font-size: 12px; }
 
-/* Read-only view hides every editing affordance */
+/* Read-only view hides every editing affordance; editors don't see the read-only copies */
 .app.readonly .edit-only { display: none !important; }
+.app:not(.readonly) .view-only { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Notes */
+.notes-input {
+  width: 100%;
+  min-height: 120px;
+  resize: vertical;
+  font: 13px/1.55 var(--font-body);
+  color: var(--ink);
+  background: var(--bg-panel);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 10px 12px;
+}
+.notes-text { font-size: 13px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; color: var(--ink); }
+.notes-text.empty { color: var(--ink-faint); }
+
+/* Ask Claude */
+.claude-steps { font-size: 13px; color: var(--ink-soft); line-height: 1.7; padding-left: 20px; margin: 4px 0 14px; }
+.claude-steps a { color: var(--accent); font-weight: 600; }
+kbd { font-family: var(--font-mono); font-size: 11px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: var(--bg-sunken); }
+.claude-preview summary { font-size: 12px; color: var(--ink-faint); cursor: pointer; }
+.claude-preview textarea {
+  width: 100%;
+  margin-top: 8px;
+  font: 11px/1.5 var(--font-mono);
+  color: var(--ink-soft);
+  background: var(--bg-sunken);
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  padding: 8px;
+  resize: vertical;
+}
 
 /* Section panels */
 .panel {
@@ -784,7 +818,7 @@ input[type="range"] { flex: 1; min-width: 160px; max-width: 400px; accent-color:
 .slot-hint { font-size: 12px; color: var(--ink-faint); padding: 8px 0; grid-column: 1 / -1; }
 
 /* Holiday clash list */
-.holiday-clashes { background: var(--warn-soft); border-radius: 3px; padding: 12px 16px; margin-top: 12px; }
+.holiday-clashes { background: var(--warn-soft); border-radius: 3px; padding: 12px 16px; }
 .holiday-clashes h4 {
   font-family: var(--font-mono);
   font-size: 10px;
@@ -889,6 +923,7 @@ footer {
       <button id="saveAsBtn" class="edit-only">Save as new scenario…</button>
       <button id="exportBtn" class="edit-only">Export</button>
       <button id="importBtn" class="edit-only">Import</button>
+      <button id="askClaudeBtn">Ask Claude</button>
       <input type="file" id="importFile" accept="application/json,.json" hidden>
       <button id="deleteBtn" class="warn edit-only">Delete scenario</button>
       <button id="clearAllBtn" class="edit-only">Clear overrides</button>
@@ -912,7 +947,6 @@ footer {
         <button id="addOngoingBtn">+ New ongoing activity</button>
         <button id="autoFillBtn">⟳ Auto-fill rolling cohorts</button>
       </div>
-      <div id="holidayClashes"></div>
     </div>
   </section>
 
@@ -959,6 +993,34 @@ footer {
         </div>
         <input type="range" id="weekSlider" min="0" max="34" value="0">
       </div>
+    </div>
+  </section>
+
+  <section class="panel collapsed" id="clashPanel" hidden>
+    <div class="panel-header" id="clashPanelHeader" role="button" tabindex="0" aria-expanded="false">
+      <div>
+        <h2>Holiday clashes</h2>
+        <div class="panel-meta" id="clashPanelMeta">—</div>
+      </div>
+      <div class="panel-toggle" id="clashPanelToggle">▶</div>
+    </div>
+    <div class="panel-body">
+      <div id="holidayClashes"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="notesPanel">
+    <div class="panel-header" id="notesPanelHeader" role="button" tabindex="0" aria-expanded="true">
+      <div>
+        <h2>Notes</h2>
+        <div class="panel-meta" id="notesPanelMeta">—</div>
+      </div>
+      <div class="panel-toggle" id="notesPanelToggle">▼</div>
+    </div>
+    <div class="panel-body">
+      <label class="sr-only" for="notesInput">Notes</label>
+      <textarea id="notesInput" class="notes-input edit-only" rows="6" placeholder="Decisions, reminders and things to check. Published with the plan, so the team sees them."></textarea>
+      <div id="notesText" class="notes-text view-only"></div>
     </div>
   </section>
 
@@ -1194,6 +1256,27 @@ footer {
     </div>
   </div>
 
+  <!-- Ask Claude modal -->
+  <div class="modal-overlay" id="claudeModal">
+    <div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="claudeTitle">
+      <h3 id="claudeTitle">Ask Claude to check this plan</h3>
+      <p class="modal-text" id="claudeStatus"></p>
+      <ol class="claude-steps">
+        <li>Open Claude: <a href="https://claude.ai/new" target="_blank" rel="noopener" id="claudeLink">claude.ai/new ↗</a></li>
+        <li>Paste with <kbd>Ctrl</kbd>+<kbd>V</kbd> and send.</li>
+        <li>Ask follow-up questions in the same chat, for example "what if Cohort 14 moved to Wed/Fri PM?"</li>
+      </ol>
+      <details class="claude-preview">
+        <summary>What gets copied</summary>
+        <textarea id="claudeText" readonly rows="10" aria-label="Plan summary and review prompt"></textarea>
+      </details>
+      <div class="modal-actions">
+        <button id="claudeClose">Close</button>
+        <button id="claudeCopy" class="primary">Copy again</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Editor PIN modal -->
   <div class="modal-overlay" id="pinModal">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pinTitle">
@@ -1202,7 +1285,7 @@ footer {
       <form id="pinForm">
         <div class="modal-field">
           <label for="pinInput">PIN</label>
-          <input type="password" id="pinInput" autocomplete="current-password">
+          <input type="password" id="pinInput" autocomplete="one-time-code">
         </div>
         <div class="modal-actions">
           <button type="button" id="pinCancel">Cancel</button>
@@ -1659,8 +1742,13 @@ function normalizeCalendar(cal) {
   return { holidays, closures };
 }
 
-function sharedJSON(scenarios, cal) {
-  return JSON.stringify({ scenarios, calendar: cal });
+function normalizeNotes(notes) {
+  return typeof notes === 'string' ? notes.slice(0, 20000) : '';
+}
+
+// Everything the team shares: scenarios, holidays and closures, and notes
+function sharedJSON(src) {
+  return JSON.stringify({ scenarios: src.scenarios, calendar: src.calendar, notes: src.notes || '' });
 }
 
 // The plan the team sees is stored on the server (/api/plan). `published` is the
@@ -1668,8 +1756,8 @@ function sharedJSON(scenarios, cal) {
 const API = '/api/plan';
 const PIN_KEY = 'workload-planner-pin';
 
-let state = { currentScenario: 'Current state', currentWeek: 0, scenarios: {}, calendar: null };
-let published = { version: 0, updatedAt: null, scenarios: {}, calendar: null };
+let state = { currentScenario: 'Current state', currentWeek: 0, scenarios: {}, calendar: null, notes: '' };
+let published = { version: 0, updatedAt: null, scenarios: {}, calendar: null, notes: '' };
 let publishedJSON = '';
 let showPastHolidays = false;
 
@@ -1679,8 +1767,8 @@ function setPublished(plan, version, updatedAt) {
   const cal = normalizeCalendar(plan.calendar);
   setCalendar(cal);
   regenerateSessions(scenarios); // holidays or schedule rules may have changed since it was saved
-  published = { version: Number(version) || 0, updatedAt: updatedAt || null, scenarios, calendar: cal };
-  publishedJSON = sharedJSON(scenarios, cal);
+  published = { version: Number(version) || 0, updatedAt: updatedAt || null, scenarios, calendar: cal, notes: normalizeNotes(plan.notes) };
+  publishedJSON = sharedJSON(published);
   if (state.calendar) setCalendar(state.calendar);
 }
 
@@ -1688,7 +1776,7 @@ function setPublished(plan, version, updatedAt) {
 let seedPlan = {};
 try { seedPlan = JSON.parse($('plannerData').textContent) || {}; } catch (_) {}
 setPublished(seedPlan, 0, null);
-applyShared(published.scenarios, published.calendar);
+applyShared(published);
 
 // 'pending' while loading; 'view' read-only; 'edit' unlocked with the PIN; 'local' opened as a plain file.
 let mode = 'pending';
@@ -1698,12 +1786,13 @@ let publishing = false;
 let draftOffer = null; // an unpublished draft from an earlier visit, offered for restore
 
 function isEditable() { return mode === 'edit' || mode === 'local'; }
-function isDirty() { return sharedJSON(state.scenarios, state.calendar) !== publishedJSON; }
+function isDirty() { return sharedJSON(state) !== publishedJSON; }
 
 // Replace the shared plan (draft restore, discard). Sessions are rebuilt against its calendar.
-function applyShared(scenarios, cal) {
-  state.scenarios = normalizeScenarios(structuredClone(scenarios));
-  state.calendar = normalizeCalendar(structuredClone(cal));
+function applyShared(src) {
+  state.scenarios = normalizeScenarios(structuredClone(src.scenarios));
+  state.calendar = normalizeCalendar(structuredClone(src.calendar));
+  state.notes = normalizeNotes(src.notes);
   setCalendar(state.calendar);
   regenerateSessions(state.scenarios);
   if (!state.scenarios[state.currentScenario]) state.currentScenario = 'Current state';
@@ -1727,6 +1816,8 @@ function loadView() {
   if (s && Number.isInteger(s.currentWeek)) state.currentWeek = s.currentWeek;
   if (v && v.cohortCollapsed) setPanelCollapsed('cohort', true);
   setPanelCollapsed('holiday', !(v && v.holidayOpen));
+  setPanelCollapsed('clash', !(v && v.clashOpen));
+  setPanelCollapsed('notes', !!(v && v.notesCollapsed));
 }
 
 function saveView() {
@@ -1734,6 +1825,8 @@ function saveView() {
     currentScenario: state.currentScenario,
     cohortCollapsed: $('cohortPanel').classList.contains('collapsed'),
     holidayOpen: !$('holidayPanel').classList.contains('collapsed'),
+    clashOpen: !$('clashPanel').classList.contains('collapsed'),
+    notesCollapsed: $('notesPanel').classList.contains('collapsed'),
   });
   storageSet(session(), VIEW_KEY, { currentWeek: state.currentWeek });
 }
@@ -1741,7 +1834,7 @@ function saveView() {
 // Call after any change to the shared plan.
 function commit() {
   if (isDirty()) {
-    storageSet(local(), DRAFT_KEY, { savedAt: new Date().toISOString(), scenarios: state.scenarios, calendar: state.calendar });
+    storageSet(local(), DRAFT_KEY, { savedAt: new Date().toISOString(), scenarios: state.scenarios, calendar: state.calendar, notes: state.notes });
   } else {
     storageRemove(local(), DRAFT_KEY);
   }
@@ -1794,7 +1887,11 @@ async function fetchPlan() {
 function savedDraft() {
   const draft = storageGet(local(), DRAFT_KEY);
   if (!draft || !draft.scenarios) return null;
-  const differs = sharedJSON(normalizeScenarios(structuredClone(draft.scenarios)), normalizeCalendar(draft.calendar || published.calendar)) !== publishedJSON;
+  const differs = sharedJSON({
+    scenarios: normalizeScenarios(structuredClone(draft.scenarios)),
+    calendar: normalizeCalendar(draft.calendar || published.calendar),
+    notes: normalizeNotes(draft.notes),
+  }) !== publishedJSON;
   if (!differs) { storageRemove(local(), DRAFT_KEY); return null; }
   return draft;
 }
@@ -1848,7 +1945,7 @@ async function lockEditing() {
   storageRemove(local(), PIN_KEY);
   mode = 'view';
   draftOffer = null;
-  applyShared(published.scenarios, published.calendar);
+  applyShared(published);
   render();
 }
 
@@ -1856,7 +1953,7 @@ async function publishChanges() {
   if (mode !== 'edit' || publishing) return;
   publishing = true;
   renderStatus();
-  const plan = { scheduleVersion: SCHEDULE_VERSION, calendar: state.calendar, scenarios: state.scenarios };
+  const plan = { scheduleVersion: SCHEDULE_VERSION, calendar: state.calendar, notes: state.notes, scenarios: state.scenarios };
   try {
     const res = await fetch(API, {
       method: 'POST',
@@ -1870,17 +1967,17 @@ async function publishChanges() {
       toast('Published. The team sees this version now.');
     } else if (res.status === 409) {
       // Keep this editor's work as a draft, show the newer version, and offer the draft back.
-      const mine = { savedAt: new Date().toISOString(), scenarios: structuredClone(state.scenarios), calendar: structuredClone(state.calendar) };
+      const mine = { savedAt: new Date().toISOString(), scenarios: structuredClone(state.scenarios), calendar: structuredClone(state.calendar), notes: state.notes };
       storageSet(local(), DRAFT_KEY, mine);
       setPublished(data.plan || seedPlan, data.version, data.updatedAt);
-      applyShared(published.scenarios, published.calendar);
+      applyShared(published);
       draftOffer = mine;
       toast('Someone published a newer version first. It is loaded now. Restore puts your changes back over it.', 8000);
     } else if (res.status === 401) {
       editorPin = null;
       storageRemove(local(), PIN_KEY);
       mode = 'view';
-      applyShared(published.scenarios, published.calendar);
+      applyShared(published);
       toast('The editor PIN has changed. Your changes are saved in this browser; unlock with the new PIN to publish them.', 8000);
     } else if (res.status === 413) {
       toast('The plan is too large to save. Delete unused scenarios and try again.', 7000);
@@ -1897,7 +1994,7 @@ async function publishChanges() {
 
 function restoreDraft() {
   if (!draftOffer) return;
-  applyShared(draftOffer.scenarios, draftOffer.calendar || published.calendar);
+  applyShared({ ...draftOffer, calendar: draftOffer.calendar || published.calendar });
   draftOffer = null;
   commit();
   render();
@@ -1905,7 +2002,7 @@ function restoreDraft() {
 
 async function discardChanges() {
   if (!(await askConfirm('Discard unpublished changes?', 'The planner goes back to the last published version.', 'Discard', true))) return;
-  applyShared(published.scenarios, published.calendar);
+  applyShared(published);
   draftOffer = null;
   storageRemove(local(), DRAFT_KEY);
   render();
@@ -1928,7 +2025,7 @@ async function initHosting() {
       // Opened as a plain file: edit freely, changes stay in this browser.
       mode = 'local';
       const draft = savedDraft();
-      if (draft) applyShared(draft.scenarios, draft.calendar || published.calendar);
+      if (draft) applyShared({ ...draft, calendar: draft.calendar || published.calendar });
       render();
       return;
     }
@@ -1937,7 +2034,7 @@ async function initHosting() {
     render();
     return;
   }
-  applyShared(published.scenarios, published.calendar);
+  applyShared(published);
 
   const pin = storageGet(local(), PIN_KEY);
   mode = 'view';
@@ -1957,7 +2054,7 @@ async function refreshPlan() {
   const before = published.version;
   try { await fetchPlan(); } catch (_) { return; }
   if (published.version !== before) {
-    applyShared(published.scenarios, published.calendar);
+    applyShared(published);
     render();
     toast('The plan was updated.');
   }
@@ -2285,6 +2382,7 @@ function render() {
   renderCohortList();
   renderModuleLegend();
   renderHolidayClashes();
+  renderNotes();
   renderCalendar();
   renderTimeline();
   renderWeekDisplay();
@@ -2479,22 +2577,29 @@ function renderCohortList() {
   });
 }
 
-function renderHolidayClashes() {
-  const el = $('holidayClashes');
-  el.innerHTML = '';
-
+function holidayClashList() {
   const clashes = [];
   currentScn().cohorts.forEach(cohort => {
     cohort.sessions.filter(s => s.isHoliday).forEach(s => {
       clashes.push({ cohortName: `Cohort ${cohort.number}`, ...s });
     });
   });
+  return clashes.sort((a, b) => a.dateStr.localeCompare(b.dateStr));
+}
+
+function renderHolidayClashes() {
+  const el = $('holidayClashes');
+  el.innerHTML = '';
+  const clashes = holidayClashList();
+  $('clashPanel').hidden = clashes.length === 0;
   if (clashes.length === 0) return;
+
+  const cohortsHit = new Set(clashes.map(c => c.cohortName)).size;
+  $('clashPanelMeta').textContent =
+    `${clashes.length} session${clashes.length !== 1 ? 's' : ''} across ${cohortsHit} cohort${cohortsHit !== 1 ? 's' : ''} · each gets a makeup session at the end`;
 
   const wrap = document.createElement('div');
   wrap.className = 'holiday-clashes';
-  wrap.innerHTML = `<h4>⚠ Holiday clashes · a makeup session is added at the end of each affected cohort</h4>`;
-
   clashes.forEach(c => {
     const item = document.createElement('div');
     item.className = 'holiday-clash-item';
@@ -2506,8 +2611,20 @@ function renderHolidayClashes() {
     `;
     wrap.appendChild(item);
   });
-
   el.appendChild(wrap);
+}
+
+function renderNotes() {
+  const notes = state.notes || '';
+  const input = $('notesInput');
+  if (document.activeElement !== input && input.value !== notes) input.value = notes;
+  const text = $('notesText');
+  text.textContent = notes || 'No notes yet.';
+  text.classList.toggle('empty', !notes);
+  const firstLine = notes.trim().split('\n')[0] || '';
+  $('notesPanelMeta').textContent = notes.trim()
+    ? (firstLine.length > 70 ? firstLine.slice(0, 70) + '…' : firstLine)
+    : 'No notes yet';
 }
 
 function renderCalendar() {
@@ -3556,6 +3673,147 @@ async function importScenarioFile(file) {
 }
 
 // ============================================================================
+// ASK CLAUDE
+// ============================================================================
+// Builds a plain-text brief of the current scenario (rules, programmes, holidays,
+// week-by-week load and what the planner already flags) with a review prompt,
+// for pasting into claude.ai.
+
+function hoursLine(w, person) {
+  const acts = getWeekActivities(w).filter(a => a.person === person && !a.isHoliday);
+  if (!acts.length) return `${personName(person)} 0h`;
+  const byType = {};
+  acts.forEach(a => { const k = ACTIVITY_LABELS[a.type] || a.type; byType[k] = (byType[k] || 0) + 3; });
+  return `${personName(person)} ${acts.length * 3}h (` + Object.entries(byType).map(([k, h]) => `${k} ${h}h`).join(', ') + ')';
+}
+
+function buildClaudeBrief() {
+  const scn = currentScn();
+  const fmt = d => d.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const iso = s => fmt(parseDate(s));
+  const todayIso = formatDateISO(new Date());
+  const L = [];
+
+  L.push('Please review this training delivery plan and flag potential problems, most important first.');
+  L.push('For each one: what the problem is, the dates and people affected, and a suggested fix. Then list anything worth double-checking. Be concise and do not restate the plan.');
+  L.push('Look especially for: double-booked facilitators, weeks over the hour limits, slot clashes, holidays and closures hitting sessions, gaps or pile-ups in cohort intake, uneven load between Iain and Neil, admin weeks that collide with new work, and Level 3 capacity given the 6-month stay.');
+  L.push('');
+  L.push('HOW THE PROGRAMME WORKS');
+  L.push('- Two facilitators: Iain and Neil. Sessions are 3 hours: AM 9:30am–12:30pm, PM 1:30pm–4:30pm, Monday to Friday.');
+  L.push('- Level 1–2 cohort: 40 sessions on a two-day timeslot (Mon/Wed, Tue/Thu or Wed/Fri, AM or PM). Level 1 = Game Playtester + Game Bug Tester (8 weeks). Level 2 = Lead Gameplay Tester + Test Case Writer + Test Plan Writer (12 weeks). A session on a holiday is skipped and a makeup session added at the end. One admin week follows each cohort. Tue/Thu slots are being phased out.');
+  L.push('- Level 3 group: one session a week, no set finish, rolling intake, each participant stays up to 6 months.');
+  L.push('- Other ongoing activities: Work Foundations, ACE.');
+  L.push(`- Weekly delivery limits: Iain ${IAIN_MAX_HOURS}h, Neil ${NEIL_MAX_HOURS}h. A facilitator can run only one session per slot.`);
+  L.push('');
+  L.push(`Today: ${fmt(new Date())}. Scenario: "${state.currentScenario}".`);
+  L.push('');
+
+  L.push('LEVEL 1–2 COHORTS');
+  const cohorts = [...scn.cohorts].sort((a, b) => a.startDate.localeCompare(b.startDate));
+  if (!cohorts.length) L.push('- none');
+  cohorts.forEach(c => {
+    const ts = findSlot(c.timeslotId);
+    const spans = cohortLevelSpans(c);
+    const end = cohortEndDate(c);
+    const holidays = c.sessions.filter(s => s.isHoliday).length;
+    L.push(`- Cohort ${c.number}: ${ts ? ts.short : '?'}, facilitator ${facilitatorSummary(c, ts)}, ${c.participants} participants. ` +
+      `Starts ${iso(c.startDate)}; L1 ${spans[1] ? fmt(spans[1].start) + ' to ' + fmt(spans[1].end) : '?'}; ` +
+      `L2 ${spans[2] ? fmt(spans[2].start) + ' to ' + fmt(spans[2].end) : '?'}; ends ${end ? fmt(end) : '?'}` +
+      (holidays ? `; ${holidays} session${holidays !== 1 ? 's' : ''} lost to holidays (made up at the end)` : '') + '.');
+  });
+  L.push('');
+
+  L.push('LEVEL 3 GROUPS');
+  const l3 = scn.ongoing.filter(o => o.type === 'l3');
+  if (!l3.length) L.push('- none');
+  l3.forEach(g => {
+    const ts = findSlot(g.timeslotId);
+    L.push(`- ${g.name}: ${ts ? ts.short : 'no day set'}, facilitator ${facilitatorSummary(g, ts)}, ${g.participants} current participants, from ${iso(g.startDate)} to ${g.endDate ? iso(g.endDate) : 'ongoing'}.`);
+  });
+  L.push('');
+
+  L.push('OTHER ONGOING ACTIVITIES');
+  const other = scn.ongoing.filter(o => o.type !== 'l3');
+  if (!other.length) L.push('- none');
+  other.forEach(o => {
+    L.push(`- ${o.name} (${ACTIVITY_LABELS[o.type] || o.type}): ${o.slots.map(s => s.day + ' ' + s.session.toUpperCase()).join(', ')}, ${personName(o.facilitator)}, from ${iso(o.startDate)} to ${o.endDate ? iso(o.endDate) : 'ongoing'}.`);
+  });
+  L.push('');
+
+  const editedWeeks = Object.keys(scn.overrides).map(Number).filter(w => Array.isArray(scn.overrides[w])).sort((a, b) => a - b);
+  if (editedWeeks.length) {
+    L.push('WEEKS EDITED BY HAND (these replace the automatic schedule for that week)');
+    editedWeeks.forEach(w => {
+      const acts = scn.overrides[w].map(a => `${personName(a.person)} ${a.day} ${a.session.toUpperCase()} ${a.cohort || ACTIVITY_LABELS[a.type] || a.type}`);
+      L.push(`- Week of ${formatWeekLabel(w)}: ${acts.join('; ') || 'emptied'}`);
+    });
+    L.push('');
+  }
+
+  L.push('UPCOMING PUBLIC HOLIDAYS AND CLOSURES');
+  state.calendar.holidays.filter(h => h.date >= todayIso).forEach(h => L.push(`- ${iso(h.date)}: ${h.name}`));
+  state.calendar.closures.filter(c => c.end >= todayIso).forEach(c => L.push(`- ${iso(c.start)} to ${iso(c.end)}: ${c.name} (closed)`));
+  L.push('');
+
+  L.push('WEEK-BY-WEEK LOAD (from this week)');
+  const fromWeek = Math.max(0, todayWeekIdx());
+  for (let w = fromWeek; w <= getTimelineHorizon(); w++) {
+    const parts = [hoursLine(w, 'iain'), hoursLine(w, 'neil')];
+    const acts = getWeekActivities(w).filter(a => !a.isHoliday);
+    const slots = {};
+    acts.forEach(a => { const k = `${personName(a.person)} ${a.day} ${a.session.toUpperCase()}`; slots[k] = (slots[k] || 0) + 1; });
+    const doubles = Object.entries(slots).filter(([, n]) => n > 1).map(([k]) => k);
+    if (doubles.length) parts.push('DOUBLE-BOOKED: ' + doubles.join(', '));
+    const admin = scn.cohorts.filter(c => { const e = cohortEndDate(c); return e && weekIndexFromDate(e) + 1 === w; }).map(c => c.number);
+    if (admin.length) parts.push('admin week for Cohort ' + admin.join(', '));
+    const hol = DAYS.map((day, i) => isHoliday(formatDateISO(addDays(weekStartDate(w), i)))).filter(Boolean);
+    if (hol.length) parts.push('holidays: ' + [...new Set(hol.map(h => h.name))].join(', '));
+    if (hasOverride(w)) parts.push('edited by hand');
+    L.push(`- w/c ${formatWeekLabel(w)}: ${parts.join('; ')}`);
+  }
+  L.push('');
+
+  const clashes = clashesById(scn);
+  const clashLines = [];
+  Object.entries(clashes).forEach(([id, list]) => {
+    const holder = slotHolders(scn).find(h => h.id === id);
+    list.forEach(c => clashLines.push(`${holder ? holder.label : id} clashes with ${c.label} on ${c.sharedDays.join('/')}`));
+  });
+  if (clashLines.length) {
+    L.push('SLOT CLASHES THE PLANNER ALREADY DETECTS');
+    [...new Set(clashLines)].forEach(l => L.push('- ' + l));
+    L.push('');
+  }
+
+  if ((state.notes || '').trim()) {
+    L.push("TEAM NOTES");
+    L.push(state.notes.trim());
+    L.push('');
+  }
+  return L.join('\n');
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function askClaude() {
+  const text = buildClaudeBrief();
+  $('claudeText').value = text;
+  const copied = await copyText(text);
+  $('claudeStatus').textContent = copied
+    ? 'The plan and a review prompt are on your clipboard.'
+    : 'Copying was blocked. Open "What gets copied" below, click in the box, press Ctrl+A then Ctrl+C.';
+  $('claudeModal').classList.add('active');
+  if (!copied) $('claudeModal').querySelector('details').open = true;
+}
+
+// ============================================================================
 // EVENT WIRING
 // ============================================================================
 
@@ -3709,6 +3967,22 @@ function wireEvents() {
   });
 
   $('exportBtn').addEventListener('click', exportScenario);
+
+  // Ask Claude
+  $('askClaudeBtn').addEventListener('click', askClaude);
+  $('claudeClose').addEventListener('click', () => $('claudeModal').classList.remove('active'));
+  $('claudeCopy').addEventListener('click', async () => {
+    const ok = await copyText($('claudeText').value);
+    toast(ok ? 'Copied.' : 'Copying was blocked. Select the text in the box and press Ctrl+C.');
+  });
+
+  // Notes: saved into the shared plan as you type
+  let notesTimer = null;
+  $('notesInput').addEventListener('input', () => {
+    state.notes = normalizeNotes($('notesInput').value);
+    clearTimeout(notesTimer);
+    notesTimer = setTimeout(() => { commit(); renderNotes(); }, 400);
+  });
   $('importBtn').addEventListener('click', () => $('importFile').click());
   $('importFile').addEventListener('change', e => {
     const file = e.target.files[0];
@@ -3717,7 +3991,7 @@ function wireEvents() {
   });
 
   // Collapsible panels
-  ['cohort', 'holiday'].forEach(name => {
+  ['cohort', 'holiday', 'clash', 'notes'].forEach(name => {
     const toggle = () => {
       setPanelCollapsed(name, !$(name + 'Panel').classList.contains('collapsed'));
       saveView();
