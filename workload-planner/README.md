@@ -37,7 +37,7 @@ In Windows PowerShell, use `npm.cmd` and `npx.cmd`, because the plain `npm` and 
 1. Open `original_workload_planner.html` in the browser you used before. Its data is stored in that browser.
 2. For each scenario, choose it and click **Export**.
 3. On the live site, click **Editor unlock**, then **Import** each file.
-4. Converted "QA Open Studio" entries become Level 3 groups. Click **Edit** on each and choose its timeslot.
+4. Converted "QA Open Studio" entries become Level 3 groups. Click **Edit** on each and choose its day and session.
 5. Check the dates in **Holidays & closures**, then click **Publish for team**.
 
 ## Editing
@@ -79,4 +79,4 @@ Then run `npm run dev` and open http://localhost:8889. Local data is kept in `.n
 ## Programme model
 
 - **Level 1–2 cohort:** 40 sessions on a two-day timeslot. Level 1 is Game Playtester and Game Bug Tester (8 weeks). Level 2 is Lead Gameplay Tester, Test Case Writer and Test Plan Writer (12 weeks). Each holiday that hits a session adds a makeup session at the end. An admin week follows each cohort.
-- **Level 3 group:** holds a timeslot from its start date with no set finish (an end date is optional). Intake is rolling, and each participant stays up to 6 months.
+- **Level 3 group:** meets once a week in one session (for example Mon AM), from its start date with no set finish (an end date is optional). It blocks only that day and session for cohorts. Intake is rolling, and each participant stays up to 6 months.
