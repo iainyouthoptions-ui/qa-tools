@@ -1,0 +1,7 @@
+# Per-machine state
+.last-run
+
+# Never commit the tool or exports
+DiscordChatExporter*/
+*.zip
+exports/
